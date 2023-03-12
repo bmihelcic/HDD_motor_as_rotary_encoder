@@ -1,0 +1,2098 @@
+ARM GAS  /tmp/ccAjMzaQ.s 			page 1
+
+
+   1              		.cpu cortex-m3
+   2              		.arch armv7-m
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 1
+  12              		.eabi_attribute 18, 4
+  13              		.file	"i2c_lcd.c"
+  14              		.text
+  15              	.Ltext0:
+  16              		.cfi_sections	.debug_frame
+  17              		.file 1 "Core/Src/i2c_lcd.c"
+  18              		.section	.text.i2cLcd_Backlight,"ax",%progbits
+  19              		.align	1
+  20              		.global	i2cLcd_Backlight
+  21              		.syntax unified
+  22              		.thumb
+  23              		.thumb_func
+  25              	i2cLcd_Backlight:
+  26              	.LVL0:
+  27              	.LFB82:
+   1:Core/Src/i2c_lcd.c **** /*
+   2:Core/Src/i2c_lcd.c ****  * i2c_lcd.c
+   3:Core/Src/i2c_lcd.c ****  *
+   4:Core/Src/i2c_lcd.c ****  *  Created on: 14 Aug 2019
+   5:Core/Src/i2c_lcd.c ****  *      Author: dit
+   6:Core/Src/i2c_lcd.c ****  */
+   7:Core/Src/i2c_lcd.c **** 
+   8:Core/Src/i2c_lcd.c **** #include "main.h"
+   9:Core/Src/i2c_lcd.c **** #include "i2c_lcd.h"
+  10:Core/Src/i2c_lcd.c **** 
+  11:Core/Src/i2c_lcd.c **** uint8_t i2cLcd_CreateHandle(i2cLcd_HandleTypeDef *h_i2cLcd, I2C_HandleTypeDef *h_i2c, uint8_t i2c_s
+  12:Core/Src/i2c_lcd.c **** 
+  13:Core/Src/i2c_lcd.c ****     uint8_t init_state;
+  14:Core/Src/i2c_lcd.c ****     init_state = 0x00; // all inputs of PCF
+  15:Core/Src/i2c_lcd.c ****     // Bind I2C HAL handler
+  16:Core/Src/i2c_lcd.c ****     if (h_i2c == NULL)
+  17:Core/Src/i2c_lcd.c ****         return -1;
+  18:Core/Src/i2c_lcd.c **** 
+  19:Core/Src/i2c_lcd.c ****     h_i2cLcd->hi2c = h_i2c;
+  20:Core/Src/i2c_lcd.c **** 
+  21:Core/Src/i2c_lcd.c ****     // Set slave address
+  22:Core/Src/i2c_lcd.c ****     h_i2cLcd->i2c_addr = i2c_slave_addr;
+  23:Core/Src/i2c_lcd.c **** 
+  24:Core/Src/i2c_lcd.c ****     //return HAL_I2C_Master_Transmit(h_i2cLcd->hi2c, h_i2cLcd->i2c_addr, &init_state, 1, 10);
+  25:Core/Src/i2c_lcd.c ****     return i2cLcd_I2cWrite(h_i2cLcd, &init_state, 1);
+  26:Core/Src/i2c_lcd.c **** }
+  27:Core/Src/i2c_lcd.c **** 
+  28:Core/Src/i2c_lcd.c **** // Send byte or nibble to LCD module via PCF8574
+  29:Core/Src/i2c_lcd.c **** uint8_t i2cLcd_SendByte(i2cLcd_HandleTypeDef * h_i2cLcd, uint8_t data, uint8_t opts){
+  30:Core/Src/i2c_lcd.c ****     // Opts[0] - R/S select
+  31:Core/Src/i2c_lcd.c ****     // Opts[1] - initialization
+ARM GAS  /tmp/ccAjMzaQ.s 			page 2
+
+
+  32:Core/Src/i2c_lcd.c **** 
+  33:Core/Src/i2c_lcd.c ****     HAL_StatusTypeDef hal_stat;
+  34:Core/Src/i2c_lcd.c ****     uint8_t i2c_frame_data[5];
+  35:Core/Src/i2c_lcd.c ****     uint8_t cmd;
+  36:Core/Src/i2c_lcd.c ****     uint8_t wait_bf;
+  37:Core/Src/i2c_lcd.c ****     uint8_t i2c_frame_size;
+  38:Core/Src/i2c_lcd.c ****     uint8_t n;
+  39:Core/Src/i2c_lcd.c ****     uint8_t lcd_opts;
+  40:Core/Src/i2c_lcd.c **** 
+  41:Core/Src/i2c_lcd.c ****     // Select between command/data frame
+  42:Core/Src/i2c_lcd.c ****     cmd = opts & I2CLCD_OPTS_RS;
+  43:Core/Src/i2c_lcd.c **** 
+  44:Core/Src/i2c_lcd.c ****     // Toggle between waiting 1ms or poll Busy Flag
+  45:Core/Src/i2c_lcd.c ****     wait_bf = opts & I2CLCD_OPTS_WAIT_BF;
+  46:Core/Src/i2c_lcd.c **** 
+  47:Core/Src/i2c_lcd.c ****     // Frame size for I2C communication.
+  48:Core/Src/i2c_lcd.c ****     if (opts & I2CLCD_OPTS_4B) {
+  49:Core/Src/i2c_lcd.c ****         i2c_frame_size = 2;
+  50:Core/Src/i2c_lcd.c ****     }
+  51:Core/Src/i2c_lcd.c ****     else {
+  52:Core/Src/i2c_lcd.c ****         i2c_frame_size = 4;
+  53:Core/Src/i2c_lcd.c ****     }
+  54:Core/Src/i2c_lcd.c **** 
+  55:Core/Src/i2c_lcd.c ****     // Add final all 1s on the 4 data bits to be able to read BusyFlag after a transaction
+  56:Core/Src/i2c_lcd.c ****     i2c_frame_size += wait_bf;
+  57:Core/Src/i2c_lcd.c **** 
+  58:Core/Src/i2c_lcd.c ****     lcd_opts = (I2CLCD_RS & cmd) | (I2CLCD_BL & h_i2cLcd->blacklight) | (I2CLCD_E);
+  59:Core/Src/i2c_lcd.c **** 
+  60:Core/Src/i2c_lcd.c ****     i2c_frame_data[0] = (data & 0xF0) | lcd_opts;
+  61:Core/Src/i2c_lcd.c ****     i2c_frame_data[1] = i2c_frame_data[0] & (~I2CLCD_E);
+  62:Core/Src/i2c_lcd.c **** 
+  63:Core/Src/i2c_lcd.c ****     i2c_frame_data[2] = ((data << 4) & 0xF0) | lcd_opts;
+  64:Core/Src/i2c_lcd.c ****     i2c_frame_data[3] = i2c_frame_data[2] & (~I2CLCD_E);
+  65:Core/Src/i2c_lcd.c **** 
+  66:Core/Src/i2c_lcd.c ****     // Preferably remove this
+  67:Core/Src/i2c_lcd.c ****     if(wait_bf)
+  68:Core/Src/i2c_lcd.c ****         i2c_frame_data[i2c_frame_size-1] = i2c_frame_data[i2c_frame_size-2] | 0x80;
+  69:Core/Src/i2c_lcd.c **** 
+  70:Core/Src/i2c_lcd.c ****     // HAL transmits i2c_frame_data[0],[1], ... , i2c_frame_data[i2c_frame_size-1]
+  71:Core/Src/i2c_lcd.c ****     hal_stat = i2cLcd_I2cWrite(h_i2cLcd, i2c_frame_data, i2c_frame_size);
+  72:Core/Src/i2c_lcd.c **** 
+  73:Core/Src/i2c_lcd.c ****     //i2cLcd_WaitBusyFlag();
+  74:Core/Src/i2c_lcd.c ****     if (wait_bf) {
+  75:Core/Src/i2c_lcd.c ****         n = 0;
+  76:Core/Src/i2c_lcd.c ****         do {
+  77:Core/Src/i2c_lcd.c ****             hal_stat |= HAL_I2C_Master_Receive(h_i2cLcd->hi2c, h_i2cLcd->i2c_addr, i2c_frame_data,
+  78:Core/Src/i2c_lcd.c ****                                         1, 10);
+  79:Core/Src/i2c_lcd.c ****             n++;
+  80:Core/Src/i2c_lcd.c ****         } while ( (n < I2CLCD_MAX_BF_POLLS) && (i2c_frame_data[0] & 0x80) );
+  81:Core/Src/i2c_lcd.c ****     }
+  82:Core/Src/i2c_lcd.c ****     else {
+  83:Core/Src/i2c_lcd.c ****         i2cLcd_Delay_ms(1);
+  84:Core/Src/i2c_lcd.c ****     }
+  85:Core/Src/i2c_lcd.c **** 
+  86:Core/Src/i2c_lcd.c ****     return (uint8_t) hal_stat;
+  87:Core/Src/i2c_lcd.c **** 
+  88:Core/Src/i2c_lcd.c **** }
+ARM GAS  /tmp/ccAjMzaQ.s 			page 3
+
+
+  89:Core/Src/i2c_lcd.c **** 
+  90:Core/Src/i2c_lcd.c **** 
+  91:Core/Src/i2c_lcd.c **** uint8_t i2cLcd_ReadByte(i2cLcd_HandleTypeDef * h_i2cLcd, uint8_t * data){
+  92:Core/Src/i2c_lcd.c **** 
+  93:Core/Src/i2c_lcd.c ****     HAL_StatusTypeDef hal_stat;
+  94:Core/Src/i2c_lcd.c ****     uint8_t i2c_frame_data[5];
+  95:Core/Src/i2c_lcd.c **** 
+  96:Core/Src/i2c_lcd.c ****     uint8_t lcd_opts;
+  97:Core/Src/i2c_lcd.c **** 
+  98:Core/Src/i2c_lcd.c ****     lcd_opts = (I2CLCD_BL & h_i2cLcd->blacklight) /*| (I2CLCD_E)*/ | (I2CLCD_RW);
+  99:Core/Src/i2c_lcd.c **** 
+ 100:Core/Src/i2c_lcd.c ****     // first need to write 0xF to data bits of PCF, E and R
+ 101:Core/Src/i2c_lcd.c ****     i2c_frame_data[0] = (0xF0) | lcd_opts;
+ 102:Core/Src/i2c_lcd.c ****     i2c_frame_data[1] = i2c_frame_data[0] | (I2CLCD_E);
+ 103:Core/Src/i2c_lcd.c **** 
+ 104:Core/Src/i2c_lcd.c ****     i2c_frame_data[2] = 0;
+ 105:Core/Src/i2c_lcd.c ****     i2c_frame_data[3] = 0;
+ 106:Core/Src/i2c_lcd.c **** 
+ 107:Core/Src/i2c_lcd.c ****     // HAL receives i2c_frame_data[0],[1], ... , i2c_frame_data[i2c_frame_size-1]
+ 108:Core/Src/i2c_lcd.c ****     hal_stat = i2cLcd_I2cWrite(h_i2cLcd, i2c_frame_data, 2);
+ 109:Core/Src/i2c_lcd.c ****     hal_stat |= i2cLcd_I2cRead(h_i2cLcd, &i2c_frame_data[2], 1);
+ 110:Core/Src/i2c_lcd.c **** 
+ 111:Core/Src/i2c_lcd.c ****     hal_stat |= i2cLcd_I2cWrite(h_i2cLcd, i2c_frame_data, 2);
+ 112:Core/Src/i2c_lcd.c ****     hal_stat |= i2cLcd_I2cRead(h_i2cLcd, &i2c_frame_data[3], 1);
+ 113:Core/Src/i2c_lcd.c **** 
+ 114:Core/Src/i2c_lcd.c ****     *data = (i2c_frame_data[2] & 0xF0) | ( (i2c_frame_data[3] >> 4) & 0x0F);
+ 115:Core/Src/i2c_lcd.c **** 
+ 116:Core/Src/i2c_lcd.c ****     return (uint8_t) hal_stat;
+ 117:Core/Src/i2c_lcd.c **** }
+ 118:Core/Src/i2c_lcd.c **** 
+ 119:Core/Src/i2c_lcd.c **** 
+ 120:Core/Src/i2c_lcd.c **** 
+ 121:Core/Src/i2c_lcd.c **** uint8_t i2cLcd_SendChar(i2cLcd_HandleTypeDef * h_i2cLcd, uint8_t chr){
+ 122:Core/Src/i2c_lcd.c **** 
+ 123:Core/Src/i2c_lcd.c ****     return i2cLcd_SendByte(h_i2cLcd, chr, I2CLCD_OPTS_DATA);
+ 124:Core/Src/i2c_lcd.c **** }
+ 125:Core/Src/i2c_lcd.c **** 
+ 126:Core/Src/i2c_lcd.c **** uint8_t i2cLcd_SendCmd(i2cLcd_HandleTypeDef * h_i2cLcd, uint8_t args){
+ 127:Core/Src/i2c_lcd.c **** 
+ 128:Core/Src/i2c_lcd.c ****     return i2cLcd_SendByte(h_i2cLcd, args, I2CLCD_OPTS_COMMAND | I2CLCD_OPTS_NOINIT );
+ 129:Core/Src/i2c_lcd.c **** }
+ 130:Core/Src/i2c_lcd.c **** 
+ 131:Core/Src/i2c_lcd.c **** uint8_t i2cLcd_SendCmd_4b(i2cLcd_HandleTypeDef * h_i2cLcd, uint8_t args){
+ 132:Core/Src/i2c_lcd.c **** 
+ 133:Core/Src/i2c_lcd.c ****     return i2cLcd_SendByte(h_i2cLcd, args, I2CLCD_OPTS_INIT );
+ 134:Core/Src/i2c_lcd.c **** }
+ 135:Core/Src/i2c_lcd.c **** 
+ 136:Core/Src/i2c_lcd.c **** 
+ 137:Core/Src/i2c_lcd.c **** 
+ 138:Core/Src/i2c_lcd.c **** 
+ 139:Core/Src/i2c_lcd.c **** 
+ 140:Core/Src/i2c_lcd.c **** uint8_t i2cLcd_WriteCustomChar(i2cLcd_HandleTypeDef * h_i2cLcd, uint8_t cgaddr, uint8_t * chardef){
+ 141:Core/Src/i2c_lcd.c ****     uint8_t i;
+ 142:Core/Src/i2c_lcd.c ****     uint8_t hal_stat;
+ 143:Core/Src/i2c_lcd.c ****     uint8_t _addr;
+ 144:Core/Src/i2c_lcd.c **** 
+ 145:Core/Src/i2c_lcd.c ****     cgaddr = (cgaddr << 3);
+ARM GAS  /tmp/ccAjMzaQ.s 			page 4
+
+
+ 146:Core/Src/i2c_lcd.c ****     hal_stat = 0;
+ 147:Core/Src/i2c_lcd.c **** 
+ 148:Core/Src/i2c_lcd.c ****     // get the current DDRAM address
+ 149:Core/Src/i2c_lcd.c ****     hal_stat |= i2cLcd_GetCursorPosition(h_i2cLcd, &_addr);
+ 150:Core/Src/i2c_lcd.c **** 
+ 151:Core/Src/i2c_lcd.c ****     for(i=0; i<8; i++){
+ 152:Core/Src/i2c_lcd.c ****         h_i2cLcd->cgram_addr = CGRAM_ADDR | (cgaddr | i);
+ 153:Core/Src/i2c_lcd.c ****         hal_stat |= i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->cgram_addr );
+ 154:Core/Src/i2c_lcd.c **** 
+ 155:Core/Src/i2c_lcd.c ****         hal_stat |= i2cLcd_SendChar(h_i2cLcd, chardef[i]);
+ 156:Core/Src/i2c_lcd.c ****     }
+ 157:Core/Src/i2c_lcd.c **** 
+ 158:Core/Src/i2c_lcd.c ****     // restore DDRAM address such that further writes are in DDRAM section
+ 159:Core/Src/i2c_lcd.c ****     hal_stat |= i2cLcd_SetCursorPosition(h_i2cLcd, _addr);
+ 160:Core/Src/i2c_lcd.c **** 
+ 161:Core/Src/i2c_lcd.c ****     return hal_stat;
+ 162:Core/Src/i2c_lcd.c **** }
+ 163:Core/Src/i2c_lcd.c **** 
+ 164:Core/Src/i2c_lcd.c **** 
+ 165:Core/Src/i2c_lcd.c **** 
+ 166:Core/Src/i2c_lcd.c **** uint8_t i2cLcd_EntryIncrEn(i2cLcd_HandleTypeDef * h_i2cLcd, uint8_t incr_en){
+ 167:Core/Src/i2c_lcd.c ****     if (incr_en) h_i2cLcd->entry_mode_set |=  (DIR_INCR_DECR) ;
+ 168:Core/Src/i2c_lcd.c ****     else h_i2cLcd->entry_mode_set &= ~(DIR_INCR_DECR) ;
+ 169:Core/Src/i2c_lcd.c ****     return i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->entry_mode_set );
+ 170:Core/Src/i2c_lcd.c **** }
+ 171:Core/Src/i2c_lcd.c **** 
+ 172:Core/Src/i2c_lcd.c **** uint8_t i2cLcd_EntryShiftEn(i2cLcd_HandleTypeDef * h_i2cLcd, uint8_t shift_en){
+ 173:Core/Src/i2c_lcd.c ****     if (shift_en) h_i2cLcd->entry_mode_set |=  (SHIFT) ;
+ 174:Core/Src/i2c_lcd.c ****     else h_i2cLcd->entry_mode_set &= ~(SHIFT) ;
+ 175:Core/Src/i2c_lcd.c ****     return i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->entry_mode_set );
+ 176:Core/Src/i2c_lcd.c **** }
+ 177:Core/Src/i2c_lcd.c **** 
+ 178:Core/Src/i2c_lcd.c **** 
+ 179:Core/Src/i2c_lcd.c **** uint8_t i2cLcd_Shift(i2cLcd_HandleTypeDef * h_i2cLcd, uint8_t disp_or_cursor, uint8_t right_left){
+ 180:Core/Src/i2c_lcd.c ****     if (disp_or_cursor) h_i2cLcd->cursor_display_shift |= (CD_SHIFT_DSIPLAY) ;
+ 181:Core/Src/i2c_lcd.c ****     else h_i2cLcd->cursor_display_shift &= ~(CD_SHIFT_DSIPLAY) ;
+ 182:Core/Src/i2c_lcd.c ****     if (right_left) h_i2cLcd->cursor_display_shift |= (CD_SHIFT_RIGHT) ;
+ 183:Core/Src/i2c_lcd.c ****     else h_i2cLcd->cursor_display_shift &= ~(CD_SHIFT_RIGHT) ;
+ 184:Core/Src/i2c_lcd.c ****     return i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->cursor_display_shift );
+ 185:Core/Src/i2c_lcd.c **** }
+ 186:Core/Src/i2c_lcd.c **** 
+ 187:Core/Src/i2c_lcd.c **** uint8_t i2cLcd_Blink(i2cLcd_HandleTypeDef * h_i2cLcd, uint8_t blink_en){
+ 188:Core/Src/i2c_lcd.c ****     if (blink_en) h_i2cLcd->diplay_ctrl |= DISP_CTRL_BLINK_ON;
+ 189:Core/Src/i2c_lcd.c ****     else h_i2cLcd->diplay_ctrl &= ~(DISP_CTRL_BLINK_ON);
+ 190:Core/Src/i2c_lcd.c ****     return i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->diplay_ctrl );
+ 191:Core/Src/i2c_lcd.c **** }
+ 192:Core/Src/i2c_lcd.c **** 
+ 193:Core/Src/i2c_lcd.c **** uint8_t i2cLcd_Cursor(i2cLcd_HandleTypeDef * h_i2cLcd, uint8_t cursor_en){
+ 194:Core/Src/i2c_lcd.c ****     if (cursor_en) h_i2cLcd->diplay_ctrl |= (DISP_CTRL_CURSOR_ON);
+ 195:Core/Src/i2c_lcd.c ****     else h_i2cLcd->diplay_ctrl &= ~(DISP_CTRL_CURSOR_ON);
+ 196:Core/Src/i2c_lcd.c ****     return i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->diplay_ctrl );
+ 197:Core/Src/i2c_lcd.c **** }
+ 198:Core/Src/i2c_lcd.c **** 
+ 199:Core/Src/i2c_lcd.c **** 
+ 200:Core/Src/i2c_lcd.c **** 
+ 201:Core/Src/i2c_lcd.c **** uint8_t i2cLcd_Init(i2cLcd_HandleTypeDef * h_i2cLcd){
+ 202:Core/Src/i2c_lcd.c ****     uint8_t ret;
+ARM GAS  /tmp/ccAjMzaQ.s 			page 5
+
+
+ 203:Core/Src/i2c_lcd.c ****     ret = 0;
+ 204:Core/Src/i2c_lcd.c **** 
+ 205:Core/Src/i2c_lcd.c ****     h_i2cLcd->function_set = FUNC_SET | FUNC_SET_DLEN_8B;
+ 206:Core/Src/i2c_lcd.c ****     h_i2cLcd->blacklight = I2CLCD_BL;
+ 207:Core/Src/i2c_lcd.c ****     h_i2cLcd->entry_mode_set = MODE_SET ;
+ 208:Core/Src/i2c_lcd.c ****     h_i2cLcd->cursor_display_shift = CD_SHIFT;
+ 209:Core/Src/i2c_lcd.c **** 
+ 210:Core/Src/i2c_lcd.c ****     // As per HD44780, if reset timing cannot be generated, initilization should be a sequence
+ 211:Core/Src/i2c_lcd.c ****     // of 0x3 writes with specific delays afterwards
+ 212:Core/Src/i2c_lcd.c **** 
+ 213:Core/Src/i2c_lcd.c ****     ret |= i2cLcd_SendCmd_4b(h_i2cLcd, h_i2cLcd->function_set);
+ 214:Core/Src/i2c_lcd.c ****     i2cLcd_Delay_ms(4);
+ 215:Core/Src/i2c_lcd.c ****     ret |= i2cLcd_SendCmd_4b(h_i2cLcd, h_i2cLcd->function_set);
+ 216:Core/Src/i2c_lcd.c ****     ret |= i2cLcd_SendCmd_4b(h_i2cLcd, h_i2cLcd->function_set);
+ 217:Core/Src/i2c_lcd.c **** 
+ 218:Core/Src/i2c_lcd.c ****     h_i2cLcd->function_set = FUNC_SET | FUNC_SET_DLEN_4B;
+ 219:Core/Src/i2c_lcd.c ****     ret |= i2cLcd_SendCmd_4b(h_i2cLcd, h_i2cLcd->function_set);
+ 220:Core/Src/i2c_lcd.c **** 
+ 221:Core/Src/i2c_lcd.c ****     h_i2cLcd->function_set = FUNC_SET | FUNC_SET_DLEN_4B | FUNC_SET_LINES_2 | FUNC_SET_FO_5X8;
+ 222:Core/Src/i2c_lcd.c ****     ret |= i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->function_set);
+ 223:Core/Src/i2c_lcd.c **** 
+ 224:Core/Src/i2c_lcd.c ****     h_i2cLcd->diplay_ctrl = DISP_CTRL | DISP_CTRL_CURSOR_ON | DISP_CTRL_BLINK_ON | DISP_CTRL_DISPLA
+ 225:Core/Src/i2c_lcd.c ****     ret |= i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->diplay_ctrl);
+ 226:Core/Src/i2c_lcd.c **** 
+ 227:Core/Src/i2c_lcd.c ****     ret |= i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->entry_mode_set);
+ 228:Core/Src/i2c_lcd.c **** 
+ 229:Core/Src/i2c_lcd.c ****     i2cLcd_ClearDisplay(h_i2cLcd);
+ 230:Core/Src/i2c_lcd.c **** 
+ 231:Core/Src/i2c_lcd.c ****     i2cLcd_Delay_ms(5);
+ 232:Core/Src/i2c_lcd.c ****     return ret;
+ 233:Core/Src/i2c_lcd.c **** }
+ 234:Core/Src/i2c_lcd.c **** 
+ 235:Core/Src/i2c_lcd.c **** 
+ 236:Core/Src/i2c_lcd.c **** 
+ 237:Core/Src/i2c_lcd.c **** uint8_t i2cLcd_ClearDisplay(i2cLcd_HandleTypeDef * h_i2cLcd){
+ 238:Core/Src/i2c_lcd.c **** 
+ 239:Core/Src/i2c_lcd.c ****     //return i2cLcd_SendByte(h_i2cLcd, CLR_DISPLAY, 0);
+ 240:Core/Src/i2c_lcd.c ****     return i2cLcd_SendCmd(h_i2cLcd, CLR_DISPLAY);
+ 241:Core/Src/i2c_lcd.c **** }
+ 242:Core/Src/i2c_lcd.c **** 
+ 243:Core/Src/i2c_lcd.c **** 
+ 244:Core/Src/i2c_lcd.c **** uint8_t i2cLcd_ReturnHome(i2cLcd_HandleTypeDef * h_i2cLcd){
+ 245:Core/Src/i2c_lcd.c ****     return i2cLcd_SendCmd(h_i2cLcd, RET_HOME );
+ 246:Core/Src/i2c_lcd.c **** }
+ 247:Core/Src/i2c_lcd.c **** 
+ 248:Core/Src/i2c_lcd.c **** 
+ 249:Core/Src/i2c_lcd.c **** uint8_t i2cLcd_SetCursorPosition(i2cLcd_HandleTypeDef * h_i2cLcd, uint8_t pos){
+ 250:Core/Src/i2c_lcd.c ****     return i2cLcd_SendByte(h_i2cLcd, DDRAM_ADDR | pos, I2CLCD_OPTS_NOINIT);
+ 251:Core/Src/i2c_lcd.c **** }
+ 252:Core/Src/i2c_lcd.c **** 
+ 253:Core/Src/i2c_lcd.c **** uint8_t i2cLcd_GetCursorPosition(i2cLcd_HandleTypeDef * h_i2cLcd, uint8_t * pos){
+ 254:Core/Src/i2c_lcd.c ****     uint8_t hal_stat;
+ 255:Core/Src/i2c_lcd.c ****     hal_stat = i2cLcd_ReadByte(h_i2cLcd, pos );
+ 256:Core/Src/i2c_lcd.c ****     *pos = *pos & 0x7F;
+ 257:Core/Src/i2c_lcd.c ****     return hal_stat;
+ 258:Core/Src/i2c_lcd.c **** }
+ 259:Core/Src/i2c_lcd.c **** 
+ARM GAS  /tmp/ccAjMzaQ.s 			page 6
+
+
+ 260:Core/Src/i2c_lcd.c **** uint8_t i2cLcd_Backlight(i2cLcd_HandleTypeDef * h_i2cLcd, uint8_t backlight){
+  28              		.loc 1 260 77 view -0
+  29              		.cfi_startproc
+  30              		@ args = 0, pretend = 0, frame = 0
+  31              		@ frame_needed = 0, uses_anonymous_args = 0
+  32              		@ link register save eliminated.
+ 261:Core/Src/i2c_lcd.c ****     if (backlight){
+  33              		.loc 1 261 5 view .LVU1
+  34              		.loc 1 261 8 is_stmt 0 view .LVU2
+  35 0000 19B1     		cbz	r1, .L2
+ 262:Core/Src/i2c_lcd.c ****         h_i2cLcd->blacklight = I2CLCD_BL;
+  36              		.loc 1 262 9 is_stmt 1 view .LVU3
+  37              		.loc 1 262 30 is_stmt 0 view .LVU4
+  38 0002 0823     		movs	r3, #8
+  39 0004 C372     		strb	r3, [r0, #11]
+  40              	.L3:
+ 263:Core/Src/i2c_lcd.c ****     }
+ 264:Core/Src/i2c_lcd.c ****     else{
+ 265:Core/Src/i2c_lcd.c ****         h_i2cLcd->blacklight = 0;
+ 266:Core/Src/i2c_lcd.c ****     }
+ 267:Core/Src/i2c_lcd.c **** 
+ 268:Core/Src/i2c_lcd.c ****     return 0;
+  41              		.loc 1 268 5 is_stmt 1 view .LVU5
+ 269:Core/Src/i2c_lcd.c **** }
+  42              		.loc 1 269 1 is_stmt 0 view .LVU6
+  43 0006 0020     		movs	r0, #0
+  44              	.LVL1:
+  45              		.loc 1 269 1 view .LVU7
+  46 0008 7047     		bx	lr
+  47              	.LVL2:
+  48              	.L2:
+ 265:Core/Src/i2c_lcd.c ****     }
+  49              		.loc 1 265 9 is_stmt 1 view .LVU8
+ 265:Core/Src/i2c_lcd.c ****     }
+  50              		.loc 1 265 30 is_stmt 0 view .LVU9
+  51 000a 0023     		movs	r3, #0
+  52 000c C372     		strb	r3, [r0, #11]
+  53 000e FAE7     		b	.L3
+  54              		.cfi_endproc
+  55              	.LFE82:
+  57              		.section	.text.i2cLcd_I2cWrite,"ax",%progbits
+  58              		.align	1
+  59              		.global	i2cLcd_I2cWrite
+  60              		.syntax unified
+  61              		.thumb
+  62              		.thumb_func
+  64              	i2cLcd_I2cWrite:
+  65              	.LVL3:
+  66              	.LFB83:
+ 270:Core/Src/i2c_lcd.c **** 
+ 271:Core/Src/i2c_lcd.c **** 
+ 272:Core/Src/i2c_lcd.c **** 
+ 273:Core/Src/i2c_lcd.c **** // Low level function wrappers
+ 274:Core/Src/i2c_lcd.c **** // Can be
+ 275:Core/Src/i2c_lcd.c **** 
+ 276:Core/Src/i2c_lcd.c **** uint8_t i2cLcd_I2cWrite(i2cLcd_HandleTypeDef * h_i2cLcd, uint8_t * data, uint8_t len){
+  67              		.loc 1 276 86 is_stmt 1 view -0
+ARM GAS  /tmp/ccAjMzaQ.s 			page 7
+
+
+  68              		.cfi_startproc
+  69              		@ args = 0, pretend = 0, frame = 0
+  70              		@ frame_needed = 0, uses_anonymous_args = 0
+  71              		.loc 1 276 86 is_stmt 0 view .LVU11
+  72 0000 00B5     		push	{lr}
+  73              	.LCFI0:
+  74              		.cfi_def_cfa_offset 4
+  75              		.cfi_offset 14, -4
+  76 0002 83B0     		sub	sp, sp, #12
+  77              	.LCFI1:
+  78              		.cfi_def_cfa_offset 16
+  79 0004 1346     		mov	r3, r2
+ 277:Core/Src/i2c_lcd.c **** 
+ 278:Core/Src/i2c_lcd.c ****     return HAL_I2C_Master_Transmit(h_i2cLcd->hi2c, h_i2cLcd->i2c_addr, data, len, 10);
+  80              		.loc 1 278 5 is_stmt 1 view .LVU12
+  81              		.loc 1 278 12 is_stmt 0 view .LVU13
+  82 0006 0A22     		movs	r2, #10
+  83              	.LVL4:
+  84              		.loc 1 278 12 view .LVU14
+  85 0008 0092     		str	r2, [sp]
+  86 000a 0A46     		mov	r2, r1
+  87 000c 0179     		ldrb	r1, [r0, #4]	@ zero_extendqisi2
+  88              	.LVL5:
+  89              		.loc 1 278 12 view .LVU15
+  90 000e 0068     		ldr	r0, [r0]
+  91              	.LVL6:
+  92              		.loc 1 278 12 view .LVU16
+  93 0010 FFF7FEFF 		bl	HAL_I2C_Master_Transmit
+  94              	.LVL7:
+ 279:Core/Src/i2c_lcd.c **** }
+  95              		.loc 1 279 1 view .LVU17
+  96 0014 03B0     		add	sp, sp, #12
+  97              	.LCFI2:
+  98              		.cfi_def_cfa_offset 4
+  99              		@ sp needed
+ 100 0016 5DF804FB 		ldr	pc, [sp], #4
+ 101              		.cfi_endproc
+ 102              	.LFE83:
+ 104              		.section	.text.i2cLcd_CreateHandle,"ax",%progbits
+ 105              		.align	1
+ 106              		.global	i2cLcd_CreateHandle
+ 107              		.syntax unified
+ 108              		.thumb
+ 109              		.thumb_func
+ 111              	i2cLcd_CreateHandle:
+ 112              	.LVL8:
+ 113              	.LFB65:
+  11:Core/Src/i2c_lcd.c **** 
+ 114              		.loc 1 11 110 is_stmt 1 view -0
+ 115              		.cfi_startproc
+ 116              		@ args = 0, pretend = 0, frame = 8
+ 117              		@ frame_needed = 0, uses_anonymous_args = 0
+  11:Core/Src/i2c_lcd.c **** 
+ 118              		.loc 1 11 110 is_stmt 0 view .LVU19
+ 119 0000 00B5     		push	{lr}
+ 120              	.LCFI3:
+ 121              		.cfi_def_cfa_offset 4
+ARM GAS  /tmp/ccAjMzaQ.s 			page 8
+
+
+ 122              		.cfi_offset 14, -4
+ 123 0002 83B0     		sub	sp, sp, #12
+ 124              	.LCFI4:
+ 125              		.cfi_def_cfa_offset 16
+  13:Core/Src/i2c_lcd.c ****     init_state = 0x00; // all inputs of PCF
+ 126              		.loc 1 13 5 is_stmt 1 view .LVU20
+  14:Core/Src/i2c_lcd.c ****     // Bind I2C HAL handler
+ 127              		.loc 1 14 5 view .LVU21
+  14:Core/Src/i2c_lcd.c ****     // Bind I2C HAL handler
+ 128              		.loc 1 14 16 is_stmt 0 view .LVU22
+ 129 0004 0023     		movs	r3, #0
+ 130 0006 8DF80730 		strb	r3, [sp, #7]
+  16:Core/Src/i2c_lcd.c ****         return -1;
+ 131              		.loc 1 16 5 is_stmt 1 view .LVU23
+  16:Core/Src/i2c_lcd.c ****         return -1;
+ 132              		.loc 1 16 8 is_stmt 0 view .LVU24
+ 133 000a 49B1     		cbz	r1, .L8
+  19:Core/Src/i2c_lcd.c **** 
+ 134              		.loc 1 19 5 is_stmt 1 view .LVU25
+  19:Core/Src/i2c_lcd.c **** 
+ 135              		.loc 1 19 20 is_stmt 0 view .LVU26
+ 136 000c 0160     		str	r1, [r0]
+  22:Core/Src/i2c_lcd.c **** 
+ 137              		.loc 1 22 5 is_stmt 1 view .LVU27
+  22:Core/Src/i2c_lcd.c **** 
+ 138              		.loc 1 22 24 is_stmt 0 view .LVU28
+ 139 000e 0271     		strb	r2, [r0, #4]
+  25:Core/Src/i2c_lcd.c **** }
+ 140              		.loc 1 25 5 is_stmt 1 view .LVU29
+  25:Core/Src/i2c_lcd.c **** }
+ 141              		.loc 1 25 12 is_stmt 0 view .LVU30
+ 142 0010 0122     		movs	r2, #1
+ 143              	.LVL9:
+  25:Core/Src/i2c_lcd.c **** }
+ 144              		.loc 1 25 12 view .LVU31
+ 145 0012 0DF10701 		add	r1, sp, #7
+ 146              	.LVL10:
+  25:Core/Src/i2c_lcd.c **** }
+ 147              		.loc 1 25 12 view .LVU32
+ 148 0016 FFF7FEFF 		bl	i2cLcd_I2cWrite
+ 149              	.LVL11:
+ 150              	.L7:
+  26:Core/Src/i2c_lcd.c **** 
+ 151              		.loc 1 26 1 view .LVU33
+ 152 001a 03B0     		add	sp, sp, #12
+ 153              	.LCFI5:
+ 154              		.cfi_remember_state
+ 155              		.cfi_def_cfa_offset 4
+ 156              		@ sp needed
+ 157 001c 5DF804FB 		ldr	pc, [sp], #4
+ 158              	.LVL12:
+ 159              	.L8:
+ 160              	.LCFI6:
+ 161              		.cfi_restore_state
+  17:Core/Src/i2c_lcd.c **** 
+ 162              		.loc 1 17 16 view .LVU34
+ 163 0020 FF20     		movs	r0, #255
+ARM GAS  /tmp/ccAjMzaQ.s 			page 9
+
+
+ 164              	.LVL13:
+  17:Core/Src/i2c_lcd.c **** 
+ 165              		.loc 1 17 16 view .LVU35
+ 166 0022 FAE7     		b	.L7
+ 167              		.cfi_endproc
+ 168              	.LFE65:
+ 170              		.section	.text.i2cLcd_I2cRead,"ax",%progbits
+ 171              		.align	1
+ 172              		.global	i2cLcd_I2cRead
+ 173              		.syntax unified
+ 174              		.thumb
+ 175              		.thumb_func
+ 177              	i2cLcd_I2cRead:
+ 178              	.LVL14:
+ 179              	.LFB84:
+ 280:Core/Src/i2c_lcd.c **** 
+ 281:Core/Src/i2c_lcd.c **** uint8_t i2cLcd_I2cRead(i2cLcd_HandleTypeDef * h_i2cLcd, uint8_t * data, uint8_t len){
+ 180              		.loc 1 281 85 is_stmt 1 view -0
+ 181              		.cfi_startproc
+ 182              		@ args = 0, pretend = 0, frame = 0
+ 183              		@ frame_needed = 0, uses_anonymous_args = 0
+ 184              		.loc 1 281 85 is_stmt 0 view .LVU37
+ 185 0000 00B5     		push	{lr}
+ 186              	.LCFI7:
+ 187              		.cfi_def_cfa_offset 4
+ 188              		.cfi_offset 14, -4
+ 189 0002 83B0     		sub	sp, sp, #12
+ 190              	.LCFI8:
+ 191              		.cfi_def_cfa_offset 16
+ 192 0004 1346     		mov	r3, r2
+ 282:Core/Src/i2c_lcd.c **** 
+ 283:Core/Src/i2c_lcd.c ****     return HAL_I2C_Master_Receive(h_i2cLcd->hi2c, h_i2cLcd->i2c_addr, data, len, 10);
+ 193              		.loc 1 283 5 is_stmt 1 view .LVU38
+ 194              		.loc 1 283 12 is_stmt 0 view .LVU39
+ 195 0006 0A22     		movs	r2, #10
+ 196              	.LVL15:
+ 197              		.loc 1 283 12 view .LVU40
+ 198 0008 0092     		str	r2, [sp]
+ 199 000a 0A46     		mov	r2, r1
+ 200 000c 0179     		ldrb	r1, [r0, #4]	@ zero_extendqisi2
+ 201              	.LVL16:
+ 202              		.loc 1 283 12 view .LVU41
+ 203 000e 0068     		ldr	r0, [r0]
+ 204              	.LVL17:
+ 205              		.loc 1 283 12 view .LVU42
+ 206 0010 FFF7FEFF 		bl	HAL_I2C_Master_Receive
+ 207              	.LVL18:
+ 284:Core/Src/i2c_lcd.c **** }
+ 208              		.loc 1 284 1 view .LVU43
+ 209 0014 03B0     		add	sp, sp, #12
+ 210              	.LCFI9:
+ 211              		.cfi_def_cfa_offset 4
+ 212              		@ sp needed
+ 213 0016 5DF804FB 		ldr	pc, [sp], #4
+ 214              		.cfi_endproc
+ 215              	.LFE84:
+ 217              		.section	.text.i2cLcd_ReadByte,"ax",%progbits
+ARM GAS  /tmp/ccAjMzaQ.s 			page 10
+
+
+ 218              		.align	1
+ 219              		.global	i2cLcd_ReadByte
+ 220              		.syntax unified
+ 221              		.thumb
+ 222              		.thumb_func
+ 224              	i2cLcd_ReadByte:
+ 225              	.LVL19:
+ 226              	.LFB67:
+  91:Core/Src/i2c_lcd.c **** 
+ 227              		.loc 1 91 73 is_stmt 1 view -0
+ 228              		.cfi_startproc
+ 229              		@ args = 0, pretend = 0, frame = 8
+ 230              		@ frame_needed = 0, uses_anonymous_args = 0
+  91:Core/Src/i2c_lcd.c **** 
+ 231              		.loc 1 91 73 is_stmt 0 view .LVU45
+ 232 0000 70B5     		push	{r4, r5, r6, lr}
+ 233              	.LCFI10:
+ 234              		.cfi_def_cfa_offset 16
+ 235              		.cfi_offset 4, -16
+ 236              		.cfi_offset 5, -12
+ 237              		.cfi_offset 6, -8
+ 238              		.cfi_offset 14, -4
+ 239 0002 82B0     		sub	sp, sp, #8
+ 240              	.LCFI11:
+ 241              		.cfi_def_cfa_offset 24
+ 242 0004 0646     		mov	r6, r0
+ 243 0006 0D46     		mov	r5, r1
+  93:Core/Src/i2c_lcd.c ****     uint8_t i2c_frame_data[5];
+ 244              		.loc 1 93 5 is_stmt 1 view .LVU46
+  94:Core/Src/i2c_lcd.c **** 
+ 245              		.loc 1 94 5 view .LVU47
+  96:Core/Src/i2c_lcd.c **** 
+ 246              		.loc 1 96 5 view .LVU48
+  98:Core/Src/i2c_lcd.c **** 
+ 247              		.loc 1 98 5 view .LVU49
+  98:Core/Src/i2c_lcd.c **** 
+ 248              		.loc 1 98 37 is_stmt 0 view .LVU50
+ 249 0008 C37A     		ldrb	r3, [r0, #11]	@ zero_extendqisi2
+  98:Core/Src/i2c_lcd.c **** 
+ 250              		.loc 1 98 14 view .LVU51
+ 251 000a 03F00803 		and	r3, r3, #8
+ 252              	.LVL20:
+ 101:Core/Src/i2c_lcd.c ****     i2c_frame_data[1] = i2c_frame_data[0] | (I2CLCD_E);
+ 253              		.loc 1 101 5 is_stmt 1 view .LVU52
+ 101:Core/Src/i2c_lcd.c ****     i2c_frame_data[1] = i2c_frame_data[0] | (I2CLCD_E);
+ 254              		.loc 1 101 23 is_stmt 0 view .LVU53
+ 255 000e 63F00D02 		orn	r2, r3, #13
+ 256 0012 8DF80020 		strb	r2, [sp]
+ 102:Core/Src/i2c_lcd.c **** 
+ 257              		.loc 1 102 5 is_stmt 1 view .LVU54
+ 102:Core/Src/i2c_lcd.c **** 
+ 258              		.loc 1 102 23 is_stmt 0 view .LVU55
+ 259 0016 63F00903 		orn	r3, r3, #9
+ 260              	.LVL21:
+ 102:Core/Src/i2c_lcd.c **** 
+ 261              		.loc 1 102 23 view .LVU56
+ 262 001a 8DF80130 		strb	r3, [sp, #1]
+ARM GAS  /tmp/ccAjMzaQ.s 			page 11
+
+
+ 104:Core/Src/i2c_lcd.c ****     i2c_frame_data[3] = 0;
+ 263              		.loc 1 104 5 is_stmt 1 view .LVU57
+ 104:Core/Src/i2c_lcd.c ****     i2c_frame_data[3] = 0;
+ 264              		.loc 1 104 23 is_stmt 0 view .LVU58
+ 265 001e 0023     		movs	r3, #0
+ 266 0020 8DF80230 		strb	r3, [sp, #2]
+ 105:Core/Src/i2c_lcd.c **** 
+ 267              		.loc 1 105 5 is_stmt 1 view .LVU59
+ 105:Core/Src/i2c_lcd.c **** 
+ 268              		.loc 1 105 23 is_stmt 0 view .LVU60
+ 269 0024 8DF80330 		strb	r3, [sp, #3]
+ 108:Core/Src/i2c_lcd.c ****     hal_stat |= i2cLcd_I2cRead(h_i2cLcd, &i2c_frame_data[2], 1);
+ 270              		.loc 1 108 5 is_stmt 1 view .LVU61
+ 108:Core/Src/i2c_lcd.c ****     hal_stat |= i2cLcd_I2cRead(h_i2cLcd, &i2c_frame_data[2], 1);
+ 271              		.loc 1 108 16 is_stmt 0 view .LVU62
+ 272 0028 0222     		movs	r2, #2
+ 273 002a 6946     		mov	r1, sp
+ 274              	.LVL22:
+ 108:Core/Src/i2c_lcd.c ****     hal_stat |= i2cLcd_I2cRead(h_i2cLcd, &i2c_frame_data[2], 1);
+ 275              		.loc 1 108 16 view .LVU63
+ 276 002c FFF7FEFF 		bl	i2cLcd_I2cWrite
+ 277              	.LVL23:
+ 108:Core/Src/i2c_lcd.c ****     hal_stat |= i2cLcd_I2cRead(h_i2cLcd, &i2c_frame_data[2], 1);
+ 278              		.loc 1 108 16 view .LVU64
+ 279 0030 0446     		mov	r4, r0
+ 280              	.LVL24:
+ 109:Core/Src/i2c_lcd.c **** 
+ 281              		.loc 1 109 5 is_stmt 1 view .LVU65
+ 109:Core/Src/i2c_lcd.c **** 
+ 282              		.loc 1 109 17 is_stmt 0 view .LVU66
+ 283 0032 0122     		movs	r2, #1
+ 284 0034 0DF10201 		add	r1, sp, #2
+ 285 0038 3046     		mov	r0, r6
+ 286 003a FFF7FEFF 		bl	i2cLcd_I2cRead
+ 287              	.LVL25:
+ 109:Core/Src/i2c_lcd.c **** 
+ 288              		.loc 1 109 14 view .LVU67
+ 289 003e 0443     		orrs	r4, r4, r0
+ 290              	.LVL26:
+ 109:Core/Src/i2c_lcd.c **** 
+ 291              		.loc 1 109 14 view .LVU68
+ 292 0040 E4B2     		uxtb	r4, r4
+ 293              	.LVL27:
+ 111:Core/Src/i2c_lcd.c ****     hal_stat |= i2cLcd_I2cRead(h_i2cLcd, &i2c_frame_data[3], 1);
+ 294              		.loc 1 111 5 is_stmt 1 view .LVU69
+ 111:Core/Src/i2c_lcd.c ****     hal_stat |= i2cLcd_I2cRead(h_i2cLcd, &i2c_frame_data[3], 1);
+ 295              		.loc 1 111 17 is_stmt 0 view .LVU70
+ 296 0042 0222     		movs	r2, #2
+ 297 0044 6946     		mov	r1, sp
+ 298 0046 3046     		mov	r0, r6
+ 299 0048 FFF7FEFF 		bl	i2cLcd_I2cWrite
+ 300              	.LVL28:
+ 111:Core/Src/i2c_lcd.c ****     hal_stat |= i2cLcd_I2cRead(h_i2cLcd, &i2c_frame_data[3], 1);
+ 301              		.loc 1 111 14 view .LVU71
+ 302 004c 0443     		orrs	r4, r4, r0
+ 303              	.LVL29:
+ 111:Core/Src/i2c_lcd.c ****     hal_stat |= i2cLcd_I2cRead(h_i2cLcd, &i2c_frame_data[3], 1);
+ARM GAS  /tmp/ccAjMzaQ.s 			page 12
+
+
+ 304              		.loc 1 111 14 view .LVU72
+ 305 004e E4B2     		uxtb	r4, r4
+ 306              	.LVL30:
+ 112:Core/Src/i2c_lcd.c **** 
+ 307              		.loc 1 112 5 is_stmt 1 view .LVU73
+ 112:Core/Src/i2c_lcd.c **** 
+ 308              		.loc 1 112 17 is_stmt 0 view .LVU74
+ 309 0050 0122     		movs	r2, #1
+ 310 0052 0DF10301 		add	r1, sp, #3
+ 311 0056 3046     		mov	r0, r6
+ 312 0058 FFF7FEFF 		bl	i2cLcd_I2cRead
+ 313              	.LVL31:
+ 112:Core/Src/i2c_lcd.c **** 
+ 314              		.loc 1 112 14 view .LVU75
+ 315 005c 2043     		orrs	r0, r0, r4
+ 316              	.LVL32:
+ 114:Core/Src/i2c_lcd.c **** 
+ 317              		.loc 1 114 5 is_stmt 1 view .LVU76
+ 114:Core/Src/i2c_lcd.c **** 
+ 318              		.loc 1 114 28 is_stmt 0 view .LVU77
+ 319 005e 9DF80230 		ldrb	r3, [sp, #2]	@ zero_extendqisi2
+ 114:Core/Src/i2c_lcd.c **** 
+ 320              		.loc 1 114 59 view .LVU78
+ 321 0062 9DF80320 		ldrb	r2, [sp, #3]	@ zero_extendqisi2
+ 114:Core/Src/i2c_lcd.c **** 
+ 322              		.loc 1 114 11 view .LVU79
+ 323 0066 23F00F03 		bic	r3, r3, #15
+ 324 006a 43EA1213 		orr	r3, r3, r2, lsr #4
+ 325 006e 2B70     		strb	r3, [r5]
+ 116:Core/Src/i2c_lcd.c **** }
+ 326              		.loc 1 116 5 is_stmt 1 view .LVU80
+ 117:Core/Src/i2c_lcd.c **** 
+ 327              		.loc 1 117 1 is_stmt 0 view .LVU81
+ 328 0070 C0B2     		uxtb	r0, r0
+ 117:Core/Src/i2c_lcd.c **** 
+ 329              		.loc 1 117 1 view .LVU82
+ 330 0072 02B0     		add	sp, sp, #8
+ 331              	.LCFI12:
+ 332              		.cfi_def_cfa_offset 16
+ 333              		@ sp needed
+ 334 0074 70BD     		pop	{r4, r5, r6, pc}
+ 117:Core/Src/i2c_lcd.c **** 
+ 335              		.loc 1 117 1 view .LVU83
+ 336              		.cfi_endproc
+ 337              	.LFE67:
+ 339              		.section	.text.i2cLcd_GetCursorPosition,"ax",%progbits
+ 340              		.align	1
+ 341              		.global	i2cLcd_GetCursorPosition
+ 342              		.syntax unified
+ 343              		.thumb
+ 344              		.thumb_func
+ 346              	i2cLcd_GetCursorPosition:
+ 347              	.LVL33:
+ 348              	.LFB81:
+ 253:Core/Src/i2c_lcd.c ****     uint8_t hal_stat;
+ 349              		.loc 1 253 81 is_stmt 1 view -0
+ 350              		.cfi_startproc
+ARM GAS  /tmp/ccAjMzaQ.s 			page 13
+
+
+ 351              		@ args = 0, pretend = 0, frame = 0
+ 352              		@ frame_needed = 0, uses_anonymous_args = 0
+ 253:Core/Src/i2c_lcd.c ****     uint8_t hal_stat;
+ 353              		.loc 1 253 81 is_stmt 0 view .LVU85
+ 354 0000 10B5     		push	{r4, lr}
+ 355              	.LCFI13:
+ 356              		.cfi_def_cfa_offset 8
+ 357              		.cfi_offset 4, -8
+ 358              		.cfi_offset 14, -4
+ 359 0002 0C46     		mov	r4, r1
+ 254:Core/Src/i2c_lcd.c ****     hal_stat = i2cLcd_ReadByte(h_i2cLcd, pos );
+ 360              		.loc 1 254 5 is_stmt 1 view .LVU86
+ 255:Core/Src/i2c_lcd.c ****     *pos = *pos & 0x7F;
+ 361              		.loc 1 255 5 view .LVU87
+ 255:Core/Src/i2c_lcd.c ****     *pos = *pos & 0x7F;
+ 362              		.loc 1 255 16 is_stmt 0 view .LVU88
+ 363 0004 FFF7FEFF 		bl	i2cLcd_ReadByte
+ 364              	.LVL34:
+ 256:Core/Src/i2c_lcd.c ****     return hal_stat;
+ 365              		.loc 1 256 5 is_stmt 1 view .LVU89
+ 256:Core/Src/i2c_lcd.c ****     return hal_stat;
+ 366              		.loc 1 256 12 is_stmt 0 view .LVU90
+ 367 0008 2378     		ldrb	r3, [r4]	@ zero_extendqisi2
+ 256:Core/Src/i2c_lcd.c ****     return hal_stat;
+ 368              		.loc 1 256 17 view .LVU91
+ 369 000a 03F07F03 		and	r3, r3, #127
+ 256:Core/Src/i2c_lcd.c ****     return hal_stat;
+ 370              		.loc 1 256 10 view .LVU92
+ 371 000e 2370     		strb	r3, [r4]
+ 257:Core/Src/i2c_lcd.c **** }
+ 372              		.loc 1 257 5 is_stmt 1 view .LVU93
+ 258:Core/Src/i2c_lcd.c **** 
+ 373              		.loc 1 258 1 is_stmt 0 view .LVU94
+ 374 0010 10BD     		pop	{r4, pc}
+ 258:Core/Src/i2c_lcd.c **** 
+ 375              		.loc 1 258 1 view .LVU95
+ 376              		.cfi_endproc
+ 377              	.LFE81:
+ 379              		.section	.text.i2cLcd_Delay_ms,"ax",%progbits
+ 380              		.align	1
+ 381              		.global	i2cLcd_Delay_ms
+ 382              		.syntax unified
+ 383              		.thumb
+ 384              		.thumb_func
+ 386              	i2cLcd_Delay_ms:
+ 387              	.LVL35:
+ 388              	.LFB85:
+ 285:Core/Src/i2c_lcd.c **** 
+ 286:Core/Src/i2c_lcd.c **** uint8_t i2cLcd_Delay_ms(uint32_t delay_ms){
+ 389              		.loc 1 286 43 is_stmt 1 view -0
+ 390              		.cfi_startproc
+ 391              		@ args = 0, pretend = 0, frame = 0
+ 392              		@ frame_needed = 0, uses_anonymous_args = 0
+ 393              		.loc 1 286 43 is_stmt 0 view .LVU97
+ 394 0000 08B5     		push	{r3, lr}
+ 395              	.LCFI14:
+ 396              		.cfi_def_cfa_offset 8
+ARM GAS  /tmp/ccAjMzaQ.s 			page 14
+
+
+ 397              		.cfi_offset 3, -8
+ 398              		.cfi_offset 14, -4
+ 287:Core/Src/i2c_lcd.c ****     // Change the delay function call if HAL_ is not available
+ 288:Core/Src/i2c_lcd.c ****     HAL_Delay(delay_ms);
+ 399              		.loc 1 288 5 is_stmt 1 view .LVU98
+ 400 0002 FFF7FEFF 		bl	HAL_Delay
+ 401              	.LVL36:
+ 289:Core/Src/i2c_lcd.c ****     return 0;
+ 402              		.loc 1 289 5 view .LVU99
+ 290:Core/Src/i2c_lcd.c **** }
+ 403              		.loc 1 290 1 is_stmt 0 view .LVU100
+ 404 0006 0020     		movs	r0, #0
+ 405 0008 08BD     		pop	{r3, pc}
+ 406              		.cfi_endproc
+ 407              	.LFE85:
+ 409              		.section	.text.i2cLcd_SendByte,"ax",%progbits
+ 410              		.align	1
+ 411              		.global	i2cLcd_SendByte
+ 412              		.syntax unified
+ 413              		.thumb
+ 414              		.thumb_func
+ 416              	i2cLcd_SendByte:
+ 417              	.LVL37:
+ 418              	.LFB66:
+  29:Core/Src/i2c_lcd.c ****     // Opts[0] - R/S select
+ 419              		.loc 1 29 85 is_stmt 1 view -0
+ 420              		.cfi_startproc
+ 421              		@ args = 0, pretend = 0, frame = 8
+ 422              		@ frame_needed = 0, uses_anonymous_args = 0
+  29:Core/Src/i2c_lcd.c ****     // Opts[0] - R/S select
+ 423              		.loc 1 29 85 is_stmt 0 view .LVU102
+ 424 0000 70B5     		push	{r4, r5, r6, lr}
+ 425              	.LCFI15:
+ 426              		.cfi_def_cfa_offset 16
+ 427              		.cfi_offset 4, -16
+ 428              		.cfi_offset 5, -12
+ 429              		.cfi_offset 6, -8
+ 430              		.cfi_offset 14, -4
+ 431 0002 84B0     		sub	sp, sp, #16
+ 432              	.LCFI16:
+ 433              		.cfi_def_cfa_offset 32
+ 434 0004 0646     		mov	r6, r0
+  33:Core/Src/i2c_lcd.c ****     uint8_t i2c_frame_data[5];
+ 435              		.loc 1 33 5 is_stmt 1 view .LVU103
+  34:Core/Src/i2c_lcd.c ****     uint8_t cmd;
+ 436              		.loc 1 34 5 view .LVU104
+  35:Core/Src/i2c_lcd.c ****     uint8_t wait_bf;
+ 437              		.loc 1 35 5 view .LVU105
+  36:Core/Src/i2c_lcd.c ****     uint8_t i2c_frame_size;
+ 438              		.loc 1 36 5 view .LVU106
+  37:Core/Src/i2c_lcd.c ****     uint8_t n;
+ 439              		.loc 1 37 5 view .LVU107
+  38:Core/Src/i2c_lcd.c ****     uint8_t lcd_opts;
+ 440              		.loc 1 38 5 view .LVU108
+  39:Core/Src/i2c_lcd.c **** 
+ 441              		.loc 1 39 5 view .LVU109
+  42:Core/Src/i2c_lcd.c **** 
+ARM GAS  /tmp/ccAjMzaQ.s 			page 15
+
+
+ 442              		.loc 1 42 5 view .LVU110
+  42:Core/Src/i2c_lcd.c **** 
+ 443              		.loc 1 42 9 is_stmt 0 view .LVU111
+ 444 0006 02F00103 		and	r3, r2, #1
+ 445              	.LVL38:
+  45:Core/Src/i2c_lcd.c **** 
+ 446              		.loc 1 45 5 is_stmt 1 view .LVU112
+  45:Core/Src/i2c_lcd.c **** 
+ 447              		.loc 1 45 13 is_stmt 0 view .LVU113
+ 448 000a 02F00804 		and	r4, r2, #8
+ 449              	.LVL39:
+  48:Core/Src/i2c_lcd.c ****         i2c_frame_size = 2;
+ 450              		.loc 1 48 5 is_stmt 1 view .LVU114
+  48:Core/Src/i2c_lcd.c ****         i2c_frame_size = 2;
+ 451              		.loc 1 48 8 is_stmt 0 view .LVU115
+ 452 000e 12F0020F 		tst	r2, #2
+ 453 0012 42D0     		beq	.L24
+  49:Core/Src/i2c_lcd.c ****     }
+ 454              		.loc 1 49 24 view .LVU116
+ 455 0014 0222     		movs	r2, #2
+ 456              	.LVL40:
+ 457              	.L19:
+  56:Core/Src/i2c_lcd.c **** 
+ 458              		.loc 1 56 5 is_stmt 1 view .LVU117
+  56:Core/Src/i2c_lcd.c **** 
+ 459              		.loc 1 56 20 is_stmt 0 view .LVU118
+ 460 0016 2244     		add	r2, r2, r4
+ 461              	.LVL41:
+  58:Core/Src/i2c_lcd.c **** 
+ 462              		.loc 1 58 5 is_stmt 1 view .LVU119
+  58:Core/Src/i2c_lcd.c **** 
+ 463              		.loc 1 58 57 is_stmt 0 view .LVU120
+ 464 0018 F07A     		ldrb	r0, [r6, #11]	@ zero_extendqisi2
+ 465              	.LVL42:
+  58:Core/Src/i2c_lcd.c **** 
+ 466              		.loc 1 58 14 view .LVU121
+ 467 001a 00F00800 		and	r0, r0, #8
+ 468 001e 0343     		orrs	r3, r3, r0
+ 469              	.LVL43:
+  58:Core/Src/i2c_lcd.c **** 
+ 470              		.loc 1 58 14 view .LVU122
+ 471 0020 43F00403 		orr	r3, r3, #4
+ 472              	.LVL44:
+  60:Core/Src/i2c_lcd.c ****     i2c_frame_data[1] = i2c_frame_data[0] & (~I2CLCD_E);
+ 473              		.loc 1 60 5 is_stmt 1 view .LVU123
+ 474 0024 21F00F00 		bic	r0, r1, #15
+ 475 0028 1843     		orrs	r0, r0, r3
+  60:Core/Src/i2c_lcd.c ****     i2c_frame_data[1] = i2c_frame_data[0] & (~I2CLCD_E);
+ 476              		.loc 1 60 23 is_stmt 0 view .LVU124
+ 477 002a 8DF80800 		strb	r0, [sp, #8]
+  61:Core/Src/i2c_lcd.c **** 
+ 478              		.loc 1 61 5 is_stmt 1 view .LVU125
+  61:Core/Src/i2c_lcd.c **** 
+ 479              		.loc 1 61 43 is_stmt 0 view .LVU126
+ 480 002e 00F0F900 		and	r0, r0, #249
+  61:Core/Src/i2c_lcd.c **** 
+ 481              		.loc 1 61 23 view .LVU127
+ARM GAS  /tmp/ccAjMzaQ.s 			page 16
+
+
+ 482 0032 8DF80900 		strb	r0, [sp, #9]
+  63:Core/Src/i2c_lcd.c ****     i2c_frame_data[3] = i2c_frame_data[2] & (~I2CLCD_E);
+ 483              		.loc 1 63 5 is_stmt 1 view .LVU128
+  63:Core/Src/i2c_lcd.c ****     i2c_frame_data[3] = i2c_frame_data[2] & (~I2CLCD_E);
+ 484              		.loc 1 63 46 is_stmt 0 view .LVU129
+ 485 0036 43EA0111 		orr	r1, r3, r1, lsl #4
+ 486              	.LVL45:
+  63:Core/Src/i2c_lcd.c ****     i2c_frame_data[3] = i2c_frame_data[2] & (~I2CLCD_E);
+ 487              		.loc 1 63 46 view .LVU130
+ 488 003a C9B2     		uxtb	r1, r1
+  63:Core/Src/i2c_lcd.c ****     i2c_frame_data[3] = i2c_frame_data[2] & (~I2CLCD_E);
+ 489              		.loc 1 63 23 view .LVU131
+ 490 003c 8DF80A10 		strb	r1, [sp, #10]
+  64:Core/Src/i2c_lcd.c **** 
+ 491              		.loc 1 64 5 is_stmt 1 view .LVU132
+  64:Core/Src/i2c_lcd.c **** 
+ 492              		.loc 1 64 43 is_stmt 0 view .LVU133
+ 493 0040 01F0F901 		and	r1, r1, #249
+  64:Core/Src/i2c_lcd.c **** 
+ 494              		.loc 1 64 23 view .LVU134
+ 495 0044 8DF80B10 		strb	r1, [sp, #11]
+  67:Core/Src/i2c_lcd.c ****         i2c_frame_data[i2c_frame_size-1] = i2c_frame_data[i2c_frame_size-2] | 0x80;
+ 496              		.loc 1 67 5 is_stmt 1 view .LVU135
+  67:Core/Src/i2c_lcd.c ****         i2c_frame_data[i2c_frame_size-1] = i2c_frame_data[i2c_frame_size-2] | 0x80;
+ 497              		.loc 1 67 7 is_stmt 0 view .LVU136
+ 498 0048 5CB1     		cbz	r4, .L20
+  68:Core/Src/i2c_lcd.c **** 
+ 499              		.loc 1 68 9 is_stmt 1 view .LVU137
+  68:Core/Src/i2c_lcd.c **** 
+ 500              		.loc 1 68 58 is_stmt 0 view .LVU138
+ 501 004a 02F10E03 		add	r3, r2, #14
+ 502              	.LVL46:
+  68:Core/Src/i2c_lcd.c **** 
+ 503              		.loc 1 68 58 view .LVU139
+ 504 004e 6B44     		add	r3, sp, r3
+ 505 0050 13F8081C 		ldrb	r1, [r3, #-8]	@ zero_extendqisi2
+  68:Core/Src/i2c_lcd.c **** 
+ 506              		.loc 1 68 42 view .LVU140
+ 507 0054 02F10F03 		add	r3, r2, #15
+ 508 0058 6B44     		add	r3, sp, r3
+ 509 005a 61F07F01 		orn	r1, r1, #127
+ 510 005e 03F8081C 		strb	r1, [r3, #-8]
+ 511              	.L20:
+  71:Core/Src/i2c_lcd.c **** 
+ 512              		.loc 1 71 5 is_stmt 1 view .LVU141
+  71:Core/Src/i2c_lcd.c **** 
+ 513              		.loc 1 71 16 is_stmt 0 view .LVU142
+ 514 0062 02A9     		add	r1, sp, #8
+ 515 0064 3046     		mov	r0, r6
+ 516 0066 FFF7FEFF 		bl	i2cLcd_I2cWrite
+ 517              	.LVL47:
+  71:Core/Src/i2c_lcd.c **** 
+ 518              		.loc 1 71 16 view .LVU143
+ 519 006a 0546     		mov	r5, r0
+ 520              	.LVL48:
+  74:Core/Src/i2c_lcd.c ****         n = 0;
+ 521              		.loc 1 74 5 is_stmt 1 view .LVU144
+ARM GAS  /tmp/ccAjMzaQ.s 			page 17
+
+
+  74:Core/Src/i2c_lcd.c ****         n = 0;
+ 522              		.loc 1 74 8 is_stmt 0 view .LVU145
+ 523 006c BCB1     		cbz	r4, .L21
+  75:Core/Src/i2c_lcd.c ****         do {
+ 524              		.loc 1 75 11 view .LVU146
+ 525 006e 0024     		movs	r4, #0
+ 526              	.LVL49:
+ 527              	.L23:
+  76:Core/Src/i2c_lcd.c ****             hal_stat |= HAL_I2C_Master_Receive(h_i2cLcd->hi2c, h_i2cLcd->i2c_addr, i2c_frame_data,
+ 528              		.loc 1 76 9 is_stmt 1 discriminator 2 view .LVU147
+  77:Core/Src/i2c_lcd.c ****                                         1, 10);
+ 529              		.loc 1 77 13 discriminator 2 view .LVU148
+  77:Core/Src/i2c_lcd.c ****                                         1, 10);
+ 530              		.loc 1 77 25 is_stmt 0 discriminator 2 view .LVU149
+ 531 0070 0A23     		movs	r3, #10
+ 532 0072 0093     		str	r3, [sp]
+ 533 0074 0123     		movs	r3, #1
+ 534 0076 02AA     		add	r2, sp, #8
+ 535 0078 3179     		ldrb	r1, [r6, #4]	@ zero_extendqisi2
+ 536 007a 3068     		ldr	r0, [r6]
+ 537 007c FFF7FEFF 		bl	HAL_I2C_Master_Receive
+ 538              	.LVL50:
+  77:Core/Src/i2c_lcd.c ****                                         1, 10);
+ 539              		.loc 1 77 22 discriminator 2 view .LVU150
+ 540 0080 0543     		orrs	r5, r5, r0
+ 541              	.LVL51:
+  77:Core/Src/i2c_lcd.c ****                                         1, 10);
+ 542              		.loc 1 77 22 discriminator 2 view .LVU151
+ 543 0082 EDB2     		uxtb	r5, r5
+ 544              	.LVL52:
+  79:Core/Src/i2c_lcd.c ****         } while ( (n < I2CLCD_MAX_BF_POLLS) && (i2c_frame_data[0] & 0x80) );
+ 545              		.loc 1 79 13 is_stmt 1 discriminator 2 view .LVU152
+  79:Core/Src/i2c_lcd.c ****         } while ( (n < I2CLCD_MAX_BF_POLLS) && (i2c_frame_data[0] & 0x80) );
+ 546              		.loc 1 79 14 is_stmt 0 discriminator 2 view .LVU153
+ 547 0084 0134     		adds	r4, r4, #1
+ 548              	.LVL53:
+  79:Core/Src/i2c_lcd.c ****         } while ( (n < I2CLCD_MAX_BF_POLLS) && (i2c_frame_data[0] & 0x80) );
+ 549              		.loc 1 79 14 discriminator 2 view .LVU154
+ 550 0086 E4B2     		uxtb	r4, r4
+ 551              	.LVL54:
+  80:Core/Src/i2c_lcd.c ****     }
+ 552              		.loc 1 80 45 is_stmt 1 discriminator 2 view .LVU155
+ 553 0088 7E2C     		cmp	r4, #126
+ 554 008a 03D8     		bhi	.L22
+  80:Core/Src/i2c_lcd.c ****     }
+ 555              		.loc 1 80 45 is_stmt 0 discriminator 1 view .LVU156
+ 556 008c 9DF90830 		ldrsb	r3, [sp, #8]
+ 557 0090 002B     		cmp	r3, #0
+ 558 0092 EDDB     		blt	.L23
+ 559              	.LVL55:
+ 560              	.L22:
+  86:Core/Src/i2c_lcd.c **** 
+ 561              		.loc 1 86 5 is_stmt 1 view .LVU157
+  88:Core/Src/i2c_lcd.c **** 
+ 562              		.loc 1 88 1 is_stmt 0 view .LVU158
+ 563 0094 2846     		mov	r0, r5
+ 564 0096 04B0     		add	sp, sp, #16
+ARM GAS  /tmp/ccAjMzaQ.s 			page 18
+
+
+ 565              	.LCFI17:
+ 566              		.cfi_remember_state
+ 567              		.cfi_def_cfa_offset 16
+ 568              		@ sp needed
+ 569 0098 70BD     		pop	{r4, r5, r6, pc}
+ 570              	.LVL56:
+ 571              	.L24:
+ 572              	.LCFI18:
+ 573              		.cfi_restore_state
+  52:Core/Src/i2c_lcd.c ****     }
+ 574              		.loc 1 52 24 view .LVU159
+ 575 009a 0422     		movs	r2, #4
+ 576              	.LVL57:
+  52:Core/Src/i2c_lcd.c ****     }
+ 577              		.loc 1 52 24 view .LVU160
+ 578 009c BBE7     		b	.L19
+ 579              	.LVL58:
+ 580              	.L21:
+  83:Core/Src/i2c_lcd.c ****     }
+ 581              		.loc 1 83 9 is_stmt 1 view .LVU161
+ 582 009e 0120     		movs	r0, #1
+ 583 00a0 FFF7FEFF 		bl	i2cLcd_Delay_ms
+ 584              	.LVL59:
+ 585 00a4 F6E7     		b	.L22
+ 586              		.cfi_endproc
+ 587              	.LFE66:
+ 589              		.section	.text.i2cLcd_SendChar,"ax",%progbits
+ 590              		.align	1
+ 591              		.global	i2cLcd_SendChar
+ 592              		.syntax unified
+ 593              		.thumb
+ 594              		.thumb_func
+ 596              	i2cLcd_SendChar:
+ 597              	.LVL60:
+ 598              	.LFB68:
+ 121:Core/Src/i2c_lcd.c **** 
+ 599              		.loc 1 121 70 view -0
+ 600              		.cfi_startproc
+ 601              		@ args = 0, pretend = 0, frame = 0
+ 602              		@ frame_needed = 0, uses_anonymous_args = 0
+ 121:Core/Src/i2c_lcd.c **** 
+ 603              		.loc 1 121 70 is_stmt 0 view .LVU163
+ 604 0000 08B5     		push	{r3, lr}
+ 605              	.LCFI19:
+ 606              		.cfi_def_cfa_offset 8
+ 607              		.cfi_offset 3, -8
+ 608              		.cfi_offset 14, -4
+ 123:Core/Src/i2c_lcd.c **** }
+ 609              		.loc 1 123 5 is_stmt 1 view .LVU164
+ 123:Core/Src/i2c_lcd.c **** }
+ 610              		.loc 1 123 12 is_stmt 0 view .LVU165
+ 611 0002 0122     		movs	r2, #1
+ 612 0004 FFF7FEFF 		bl	i2cLcd_SendByte
+ 613              	.LVL61:
+ 124:Core/Src/i2c_lcd.c **** 
+ 614              		.loc 1 124 1 view .LVU166
+ 615 0008 08BD     		pop	{r3, pc}
+ARM GAS  /tmp/ccAjMzaQ.s 			page 19
+
+
+ 616              		.cfi_endproc
+ 617              	.LFE68:
+ 619              		.section	.text.i2cLcd_SendCmd,"ax",%progbits
+ 620              		.align	1
+ 621              		.global	i2cLcd_SendCmd
+ 622              		.syntax unified
+ 623              		.thumb
+ 624              		.thumb_func
+ 626              	i2cLcd_SendCmd:
+ 627              	.LVL62:
+ 628              	.LFB69:
+ 126:Core/Src/i2c_lcd.c **** 
+ 629              		.loc 1 126 70 is_stmt 1 view -0
+ 630              		.cfi_startproc
+ 631              		@ args = 0, pretend = 0, frame = 0
+ 632              		@ frame_needed = 0, uses_anonymous_args = 0
+ 126:Core/Src/i2c_lcd.c **** 
+ 633              		.loc 1 126 70 is_stmt 0 view .LVU168
+ 634 0000 08B5     		push	{r3, lr}
+ 635              	.LCFI20:
+ 636              		.cfi_def_cfa_offset 8
+ 637              		.cfi_offset 3, -8
+ 638              		.cfi_offset 14, -4
+ 128:Core/Src/i2c_lcd.c **** }
+ 639              		.loc 1 128 5 is_stmt 1 view .LVU169
+ 128:Core/Src/i2c_lcd.c **** }
+ 640              		.loc 1 128 12 is_stmt 0 view .LVU170
+ 641 0002 0022     		movs	r2, #0
+ 642 0004 FFF7FEFF 		bl	i2cLcd_SendByte
+ 643              	.LVL63:
+ 129:Core/Src/i2c_lcd.c **** 
+ 644              		.loc 1 129 1 view .LVU171
+ 645 0008 08BD     		pop	{r3, pc}
+ 646              		.cfi_endproc
+ 647              	.LFE69:
+ 649              		.section	.text.i2cLcd_EntryIncrEn,"ax",%progbits
+ 650              		.align	1
+ 651              		.global	i2cLcd_EntryIncrEn
+ 652              		.syntax unified
+ 653              		.thumb
+ 654              		.thumb_func
+ 656              	i2cLcd_EntryIncrEn:
+ 657              	.LVL64:
+ 658              	.LFB72:
+ 166:Core/Src/i2c_lcd.c ****     if (incr_en) h_i2cLcd->entry_mode_set |=  (DIR_INCR_DECR) ;
+ 659              		.loc 1 166 77 is_stmt 1 view -0
+ 660              		.cfi_startproc
+ 661              		@ args = 0, pretend = 0, frame = 0
+ 662              		@ frame_needed = 0, uses_anonymous_args = 0
+ 166:Core/Src/i2c_lcd.c ****     if (incr_en) h_i2cLcd->entry_mode_set |=  (DIR_INCR_DECR) ;
+ 663              		.loc 1 166 77 is_stmt 0 view .LVU173
+ 664 0000 08B5     		push	{r3, lr}
+ 665              	.LCFI21:
+ 666              		.cfi_def_cfa_offset 8
+ 667              		.cfi_offset 3, -8
+ 668              		.cfi_offset 14, -4
+ 167:Core/Src/i2c_lcd.c ****     else h_i2cLcd->entry_mode_set &= ~(DIR_INCR_DECR) ;
+ARM GAS  /tmp/ccAjMzaQ.s 			page 20
+
+
+ 669              		.loc 1 167 5 is_stmt 1 view .LVU174
+ 167:Core/Src/i2c_lcd.c ****     else h_i2cLcd->entry_mode_set &= ~(DIR_INCR_DECR) ;
+ 670              		.loc 1 167 8 is_stmt 0 view .LVU175
+ 671 0002 39B1     		cbz	r1, .L31
+ 167:Core/Src/i2c_lcd.c ****     else h_i2cLcd->entry_mode_set &= ~(DIR_INCR_DECR) ;
+ 672              		.loc 1 167 18 is_stmt 1 discriminator 1 view .LVU176
+ 167:Core/Src/i2c_lcd.c ****     else h_i2cLcd->entry_mode_set &= ~(DIR_INCR_DECR) ;
+ 673              		.loc 1 167 26 is_stmt 0 discriminator 1 view .LVU177
+ 674 0004 4379     		ldrb	r3, [r0, #5]	@ zero_extendqisi2
+ 167:Core/Src/i2c_lcd.c ****     else h_i2cLcd->entry_mode_set &= ~(DIR_INCR_DECR) ;
+ 675              		.loc 1 167 43 discriminator 1 view .LVU178
+ 676 0006 43F00203 		orr	r3, r3, #2
+ 677 000a 4371     		strb	r3, [r0, #5]
+ 678              	.L32:
+ 169:Core/Src/i2c_lcd.c **** }
+ 679              		.loc 1 169 5 is_stmt 1 view .LVU179
+ 169:Core/Src/i2c_lcd.c **** }
+ 680              		.loc 1 169 12 is_stmt 0 view .LVU180
+ 681 000c 4179     		ldrb	r1, [r0, #5]	@ zero_extendqisi2
+ 682              	.LVL65:
+ 169:Core/Src/i2c_lcd.c **** }
+ 683              		.loc 1 169 12 view .LVU181
+ 684 000e FFF7FEFF 		bl	i2cLcd_SendCmd
+ 685              	.LVL66:
+ 170:Core/Src/i2c_lcd.c **** 
+ 686              		.loc 1 170 1 view .LVU182
+ 687 0012 08BD     		pop	{r3, pc}
+ 688              	.LVL67:
+ 689              	.L31:
+ 168:Core/Src/i2c_lcd.c ****     return i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->entry_mode_set );
+ 690              		.loc 1 168 10 is_stmt 1 view .LVU183
+ 168:Core/Src/i2c_lcd.c ****     return i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->entry_mode_set );
+ 691              		.loc 1 168 18 is_stmt 0 view .LVU184
+ 692 0014 4379     		ldrb	r3, [r0, #5]	@ zero_extendqisi2
+ 168:Core/Src/i2c_lcd.c ****     return i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->entry_mode_set );
+ 693              		.loc 1 168 35 view .LVU185
+ 694 0016 23F00203 		bic	r3, r3, #2
+ 695 001a 4371     		strb	r3, [r0, #5]
+ 696 001c F6E7     		b	.L32
+ 697              		.cfi_endproc
+ 698              	.LFE72:
+ 700              		.section	.text.i2cLcd_EntryShiftEn,"ax",%progbits
+ 701              		.align	1
+ 702              		.global	i2cLcd_EntryShiftEn
+ 703              		.syntax unified
+ 704              		.thumb
+ 705              		.thumb_func
+ 707              	i2cLcd_EntryShiftEn:
+ 708              	.LVL68:
+ 709              	.LFB73:
+ 172:Core/Src/i2c_lcd.c ****     if (shift_en) h_i2cLcd->entry_mode_set |=  (SHIFT) ;
+ 710              		.loc 1 172 79 is_stmt 1 view -0
+ 711              		.cfi_startproc
+ 712              		@ args = 0, pretend = 0, frame = 0
+ 713              		@ frame_needed = 0, uses_anonymous_args = 0
+ 172:Core/Src/i2c_lcd.c ****     if (shift_en) h_i2cLcd->entry_mode_set |=  (SHIFT) ;
+ 714              		.loc 1 172 79 is_stmt 0 view .LVU187
+ARM GAS  /tmp/ccAjMzaQ.s 			page 21
+
+
+ 715 0000 08B5     		push	{r3, lr}
+ 716              	.LCFI22:
+ 717              		.cfi_def_cfa_offset 8
+ 718              		.cfi_offset 3, -8
+ 719              		.cfi_offset 14, -4
+ 173:Core/Src/i2c_lcd.c ****     else h_i2cLcd->entry_mode_set &= ~(SHIFT) ;
+ 720              		.loc 1 173 5 is_stmt 1 view .LVU188
+ 173:Core/Src/i2c_lcd.c ****     else h_i2cLcd->entry_mode_set &= ~(SHIFT) ;
+ 721              		.loc 1 173 8 is_stmt 0 view .LVU189
+ 722 0002 39B1     		cbz	r1, .L35
+ 173:Core/Src/i2c_lcd.c ****     else h_i2cLcd->entry_mode_set &= ~(SHIFT) ;
+ 723              		.loc 1 173 19 is_stmt 1 discriminator 1 view .LVU190
+ 173:Core/Src/i2c_lcd.c ****     else h_i2cLcd->entry_mode_set &= ~(SHIFT) ;
+ 724              		.loc 1 173 27 is_stmt 0 discriminator 1 view .LVU191
+ 725 0004 4379     		ldrb	r3, [r0, #5]	@ zero_extendqisi2
+ 173:Core/Src/i2c_lcd.c ****     else h_i2cLcd->entry_mode_set &= ~(SHIFT) ;
+ 726              		.loc 1 173 44 discriminator 1 view .LVU192
+ 727 0006 43F00103 		orr	r3, r3, #1
+ 728 000a 4371     		strb	r3, [r0, #5]
+ 729              	.L36:
+ 175:Core/Src/i2c_lcd.c **** }
+ 730              		.loc 1 175 5 is_stmt 1 view .LVU193
+ 175:Core/Src/i2c_lcd.c **** }
+ 731              		.loc 1 175 12 is_stmt 0 view .LVU194
+ 732 000c 4179     		ldrb	r1, [r0, #5]	@ zero_extendqisi2
+ 733              	.LVL69:
+ 175:Core/Src/i2c_lcd.c **** }
+ 734              		.loc 1 175 12 view .LVU195
+ 735 000e FFF7FEFF 		bl	i2cLcd_SendCmd
+ 736              	.LVL70:
+ 176:Core/Src/i2c_lcd.c **** 
+ 737              		.loc 1 176 1 view .LVU196
+ 738 0012 08BD     		pop	{r3, pc}
+ 739              	.LVL71:
+ 740              	.L35:
+ 174:Core/Src/i2c_lcd.c ****     return i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->entry_mode_set );
+ 741              		.loc 1 174 10 is_stmt 1 view .LVU197
+ 174:Core/Src/i2c_lcd.c ****     return i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->entry_mode_set );
+ 742              		.loc 1 174 18 is_stmt 0 view .LVU198
+ 743 0014 4379     		ldrb	r3, [r0, #5]	@ zero_extendqisi2
+ 174:Core/Src/i2c_lcd.c ****     return i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->entry_mode_set );
+ 744              		.loc 1 174 35 view .LVU199
+ 745 0016 23F00103 		bic	r3, r3, #1
+ 746 001a 4371     		strb	r3, [r0, #5]
+ 747 001c F6E7     		b	.L36
+ 748              		.cfi_endproc
+ 749              	.LFE73:
+ 751              		.section	.text.i2cLcd_Shift,"ax",%progbits
+ 752              		.align	1
+ 753              		.global	i2cLcd_Shift
+ 754              		.syntax unified
+ 755              		.thumb
+ 756              		.thumb_func
+ 758              	i2cLcd_Shift:
+ 759              	.LVL72:
+ 760              	.LFB74:
+ 179:Core/Src/i2c_lcd.c ****     if (disp_or_cursor) h_i2cLcd->cursor_display_shift |= (CD_SHIFT_DSIPLAY) ;
+ARM GAS  /tmp/ccAjMzaQ.s 			page 22
+
+
+ 761              		.loc 1 179 98 is_stmt 1 view -0
+ 762              		.cfi_startproc
+ 763              		@ args = 0, pretend = 0, frame = 0
+ 764              		@ frame_needed = 0, uses_anonymous_args = 0
+ 179:Core/Src/i2c_lcd.c ****     if (disp_or_cursor) h_i2cLcd->cursor_display_shift |= (CD_SHIFT_DSIPLAY) ;
+ 765              		.loc 1 179 98 is_stmt 0 view .LVU201
+ 766 0000 08B5     		push	{r3, lr}
+ 767              	.LCFI23:
+ 768              		.cfi_def_cfa_offset 8
+ 769              		.cfi_offset 3, -8
+ 770              		.cfi_offset 14, -4
+ 180:Core/Src/i2c_lcd.c ****     else h_i2cLcd->cursor_display_shift &= ~(CD_SHIFT_DSIPLAY) ;
+ 771              		.loc 1 180 5 is_stmt 1 view .LVU202
+ 180:Core/Src/i2c_lcd.c ****     else h_i2cLcd->cursor_display_shift &= ~(CD_SHIFT_DSIPLAY) ;
+ 772              		.loc 1 180 8 is_stmt 0 view .LVU203
+ 773 0002 61B1     		cbz	r1, .L39
+ 180:Core/Src/i2c_lcd.c ****     else h_i2cLcd->cursor_display_shift &= ~(CD_SHIFT_DSIPLAY) ;
+ 774              		.loc 1 180 25 is_stmt 1 discriminator 1 view .LVU204
+ 180:Core/Src/i2c_lcd.c ****     else h_i2cLcd->cursor_display_shift &= ~(CD_SHIFT_DSIPLAY) ;
+ 775              		.loc 1 180 33 is_stmt 0 discriminator 1 view .LVU205
+ 776 0004 C379     		ldrb	r3, [r0, #7]	@ zero_extendqisi2
+ 180:Core/Src/i2c_lcd.c ****     else h_i2cLcd->cursor_display_shift &= ~(CD_SHIFT_DSIPLAY) ;
+ 777              		.loc 1 180 56 discriminator 1 view .LVU206
+ 778 0006 43F00803 		orr	r3, r3, #8
+ 779 000a C371     		strb	r3, [r0, #7]
+ 780              	.L40:
+ 182:Core/Src/i2c_lcd.c ****     else h_i2cLcd->cursor_display_shift &= ~(CD_SHIFT_RIGHT) ;
+ 781              		.loc 1 182 5 is_stmt 1 view .LVU207
+ 182:Core/Src/i2c_lcd.c ****     else h_i2cLcd->cursor_display_shift &= ~(CD_SHIFT_RIGHT) ;
+ 782              		.loc 1 182 8 is_stmt 0 view .LVU208
+ 783 000c 62B1     		cbz	r2, .L41
+ 182:Core/Src/i2c_lcd.c ****     else h_i2cLcd->cursor_display_shift &= ~(CD_SHIFT_RIGHT) ;
+ 784              		.loc 1 182 21 is_stmt 1 discriminator 1 view .LVU209
+ 182:Core/Src/i2c_lcd.c ****     else h_i2cLcd->cursor_display_shift &= ~(CD_SHIFT_RIGHT) ;
+ 785              		.loc 1 182 29 is_stmt 0 discriminator 1 view .LVU210
+ 786 000e C379     		ldrb	r3, [r0, #7]	@ zero_extendqisi2
+ 182:Core/Src/i2c_lcd.c ****     else h_i2cLcd->cursor_display_shift &= ~(CD_SHIFT_RIGHT) ;
+ 787              		.loc 1 182 52 discriminator 1 view .LVU211
+ 788 0010 43F00403 		orr	r3, r3, #4
+ 789 0014 C371     		strb	r3, [r0, #7]
+ 790              	.L42:
+ 184:Core/Src/i2c_lcd.c **** }
+ 791              		.loc 1 184 5 is_stmt 1 view .LVU212
+ 184:Core/Src/i2c_lcd.c **** }
+ 792              		.loc 1 184 12 is_stmt 0 view .LVU213
+ 793 0016 C179     		ldrb	r1, [r0, #7]	@ zero_extendqisi2
+ 794              	.LVL73:
+ 184:Core/Src/i2c_lcd.c **** }
+ 795              		.loc 1 184 12 view .LVU214
+ 796 0018 FFF7FEFF 		bl	i2cLcd_SendCmd
+ 797              	.LVL74:
+ 185:Core/Src/i2c_lcd.c **** 
+ 798              		.loc 1 185 1 view .LVU215
+ 799 001c 08BD     		pop	{r3, pc}
+ 800              	.LVL75:
+ 801              	.L39:
+ 181:Core/Src/i2c_lcd.c ****     if (right_left) h_i2cLcd->cursor_display_shift |= (CD_SHIFT_RIGHT) ;
+ARM GAS  /tmp/ccAjMzaQ.s 			page 23
+
+
+ 802              		.loc 1 181 10 is_stmt 1 view .LVU216
+ 181:Core/Src/i2c_lcd.c ****     if (right_left) h_i2cLcd->cursor_display_shift |= (CD_SHIFT_RIGHT) ;
+ 803              		.loc 1 181 18 is_stmt 0 view .LVU217
+ 804 001e C379     		ldrb	r3, [r0, #7]	@ zero_extendqisi2
+ 181:Core/Src/i2c_lcd.c ****     if (right_left) h_i2cLcd->cursor_display_shift |= (CD_SHIFT_RIGHT) ;
+ 805              		.loc 1 181 41 view .LVU218
+ 806 0020 23F00803 		bic	r3, r3, #8
+ 807 0024 C371     		strb	r3, [r0, #7]
+ 808 0026 F1E7     		b	.L40
+ 809              	.L41:
+ 183:Core/Src/i2c_lcd.c ****     return i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->cursor_display_shift );
+ 810              		.loc 1 183 10 is_stmt 1 view .LVU219
+ 183:Core/Src/i2c_lcd.c ****     return i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->cursor_display_shift );
+ 811              		.loc 1 183 18 is_stmt 0 view .LVU220
+ 812 0028 C379     		ldrb	r3, [r0, #7]	@ zero_extendqisi2
+ 183:Core/Src/i2c_lcd.c ****     return i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->cursor_display_shift );
+ 813              		.loc 1 183 41 view .LVU221
+ 814 002a 23F00403 		bic	r3, r3, #4
+ 815 002e C371     		strb	r3, [r0, #7]
+ 816 0030 F1E7     		b	.L42
+ 817              		.cfi_endproc
+ 818              	.LFE74:
+ 820              		.section	.text.i2cLcd_Blink,"ax",%progbits
+ 821              		.align	1
+ 822              		.global	i2cLcd_Blink
+ 823              		.syntax unified
+ 824              		.thumb
+ 825              		.thumb_func
+ 827              	i2cLcd_Blink:
+ 828              	.LVL76:
+ 829              	.LFB75:
+ 187:Core/Src/i2c_lcd.c ****     if (blink_en) h_i2cLcd->diplay_ctrl |= DISP_CTRL_BLINK_ON;
+ 830              		.loc 1 187 72 is_stmt 1 view -0
+ 831              		.cfi_startproc
+ 832              		@ args = 0, pretend = 0, frame = 0
+ 833              		@ frame_needed = 0, uses_anonymous_args = 0
+ 187:Core/Src/i2c_lcd.c ****     if (blink_en) h_i2cLcd->diplay_ctrl |= DISP_CTRL_BLINK_ON;
+ 834              		.loc 1 187 72 is_stmt 0 view .LVU223
+ 835 0000 08B5     		push	{r3, lr}
+ 836              	.LCFI24:
+ 837              		.cfi_def_cfa_offset 8
+ 838              		.cfi_offset 3, -8
+ 839              		.cfi_offset 14, -4
+ 188:Core/Src/i2c_lcd.c ****     else h_i2cLcd->diplay_ctrl &= ~(DISP_CTRL_BLINK_ON);
+ 840              		.loc 1 188 5 is_stmt 1 view .LVU224
+ 188:Core/Src/i2c_lcd.c ****     else h_i2cLcd->diplay_ctrl &= ~(DISP_CTRL_BLINK_ON);
+ 841              		.loc 1 188 8 is_stmt 0 view .LVU225
+ 842 0002 39B1     		cbz	r1, .L45
+ 188:Core/Src/i2c_lcd.c ****     else h_i2cLcd->diplay_ctrl &= ~(DISP_CTRL_BLINK_ON);
+ 843              		.loc 1 188 19 is_stmt 1 discriminator 1 view .LVU226
+ 188:Core/Src/i2c_lcd.c ****     else h_i2cLcd->diplay_ctrl &= ~(DISP_CTRL_BLINK_ON);
+ 844              		.loc 1 188 27 is_stmt 0 discriminator 1 view .LVU227
+ 845 0004 8379     		ldrb	r3, [r0, #6]	@ zero_extendqisi2
+ 188:Core/Src/i2c_lcd.c ****     else h_i2cLcd->diplay_ctrl &= ~(DISP_CTRL_BLINK_ON);
+ 846              		.loc 1 188 41 discriminator 1 view .LVU228
+ 847 0006 43F00103 		orr	r3, r3, #1
+ 848 000a 8371     		strb	r3, [r0, #6]
+ARM GAS  /tmp/ccAjMzaQ.s 			page 24
+
+
+ 849              	.L46:
+ 190:Core/Src/i2c_lcd.c **** }
+ 850              		.loc 1 190 5 is_stmt 1 view .LVU229
+ 190:Core/Src/i2c_lcd.c **** }
+ 851              		.loc 1 190 12 is_stmt 0 view .LVU230
+ 852 000c 8179     		ldrb	r1, [r0, #6]	@ zero_extendqisi2
+ 853              	.LVL77:
+ 190:Core/Src/i2c_lcd.c **** }
+ 854              		.loc 1 190 12 view .LVU231
+ 855 000e FFF7FEFF 		bl	i2cLcd_SendCmd
+ 856              	.LVL78:
+ 191:Core/Src/i2c_lcd.c **** 
+ 857              		.loc 1 191 1 view .LVU232
+ 858 0012 08BD     		pop	{r3, pc}
+ 859              	.LVL79:
+ 860              	.L45:
+ 189:Core/Src/i2c_lcd.c ****     return i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->diplay_ctrl );
+ 861              		.loc 1 189 10 is_stmt 1 view .LVU233
+ 189:Core/Src/i2c_lcd.c ****     return i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->diplay_ctrl );
+ 862              		.loc 1 189 18 is_stmt 0 view .LVU234
+ 863 0014 8379     		ldrb	r3, [r0, #6]	@ zero_extendqisi2
+ 189:Core/Src/i2c_lcd.c ****     return i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->diplay_ctrl );
+ 864              		.loc 1 189 32 view .LVU235
+ 865 0016 23F00103 		bic	r3, r3, #1
+ 866 001a 8371     		strb	r3, [r0, #6]
+ 867 001c F6E7     		b	.L46
+ 868              		.cfi_endproc
+ 869              	.LFE75:
+ 871              		.section	.text.i2cLcd_Cursor,"ax",%progbits
+ 872              		.align	1
+ 873              		.global	i2cLcd_Cursor
+ 874              		.syntax unified
+ 875              		.thumb
+ 876              		.thumb_func
+ 878              	i2cLcd_Cursor:
+ 879              	.LVL80:
+ 880              	.LFB76:
+ 193:Core/Src/i2c_lcd.c ****     if (cursor_en) h_i2cLcd->diplay_ctrl |= (DISP_CTRL_CURSOR_ON);
+ 881              		.loc 1 193 74 is_stmt 1 view -0
+ 882              		.cfi_startproc
+ 883              		@ args = 0, pretend = 0, frame = 0
+ 884              		@ frame_needed = 0, uses_anonymous_args = 0
+ 193:Core/Src/i2c_lcd.c ****     if (cursor_en) h_i2cLcd->diplay_ctrl |= (DISP_CTRL_CURSOR_ON);
+ 885              		.loc 1 193 74 is_stmt 0 view .LVU237
+ 886 0000 08B5     		push	{r3, lr}
+ 887              	.LCFI25:
+ 888              		.cfi_def_cfa_offset 8
+ 889              		.cfi_offset 3, -8
+ 890              		.cfi_offset 14, -4
+ 194:Core/Src/i2c_lcd.c ****     else h_i2cLcd->diplay_ctrl &= ~(DISP_CTRL_CURSOR_ON);
+ 891              		.loc 1 194 5 is_stmt 1 view .LVU238
+ 194:Core/Src/i2c_lcd.c ****     else h_i2cLcd->diplay_ctrl &= ~(DISP_CTRL_CURSOR_ON);
+ 892              		.loc 1 194 8 is_stmt 0 view .LVU239
+ 893 0002 39B1     		cbz	r1, .L49
+ 194:Core/Src/i2c_lcd.c ****     else h_i2cLcd->diplay_ctrl &= ~(DISP_CTRL_CURSOR_ON);
+ 894              		.loc 1 194 20 is_stmt 1 discriminator 1 view .LVU240
+ 194:Core/Src/i2c_lcd.c ****     else h_i2cLcd->diplay_ctrl &= ~(DISP_CTRL_CURSOR_ON);
+ARM GAS  /tmp/ccAjMzaQ.s 			page 25
+
+
+ 895              		.loc 1 194 28 is_stmt 0 discriminator 1 view .LVU241
+ 896 0004 8379     		ldrb	r3, [r0, #6]	@ zero_extendqisi2
+ 194:Core/Src/i2c_lcd.c ****     else h_i2cLcd->diplay_ctrl &= ~(DISP_CTRL_CURSOR_ON);
+ 897              		.loc 1 194 42 discriminator 1 view .LVU242
+ 898 0006 43F00203 		orr	r3, r3, #2
+ 899 000a 8371     		strb	r3, [r0, #6]
+ 900              	.L50:
+ 196:Core/Src/i2c_lcd.c **** }
+ 901              		.loc 1 196 5 is_stmt 1 view .LVU243
+ 196:Core/Src/i2c_lcd.c **** }
+ 902              		.loc 1 196 12 is_stmt 0 view .LVU244
+ 903 000c 8179     		ldrb	r1, [r0, #6]	@ zero_extendqisi2
+ 904              	.LVL81:
+ 196:Core/Src/i2c_lcd.c **** }
+ 905              		.loc 1 196 12 view .LVU245
+ 906 000e FFF7FEFF 		bl	i2cLcd_SendCmd
+ 907              	.LVL82:
+ 197:Core/Src/i2c_lcd.c **** 
+ 908              		.loc 1 197 1 view .LVU246
+ 909 0012 08BD     		pop	{r3, pc}
+ 910              	.LVL83:
+ 911              	.L49:
+ 195:Core/Src/i2c_lcd.c ****     return i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->diplay_ctrl );
+ 912              		.loc 1 195 10 is_stmt 1 view .LVU247
+ 195:Core/Src/i2c_lcd.c ****     return i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->diplay_ctrl );
+ 913              		.loc 1 195 18 is_stmt 0 view .LVU248
+ 914 0014 8379     		ldrb	r3, [r0, #6]	@ zero_extendqisi2
+ 195:Core/Src/i2c_lcd.c ****     return i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->diplay_ctrl );
+ 915              		.loc 1 195 32 view .LVU249
+ 916 0016 23F00203 		bic	r3, r3, #2
+ 917 001a 8371     		strb	r3, [r0, #6]
+ 918 001c F6E7     		b	.L50
+ 919              		.cfi_endproc
+ 920              	.LFE76:
+ 922              		.section	.text.i2cLcd_ClearDisplay,"ax",%progbits
+ 923              		.align	1
+ 924              		.global	i2cLcd_ClearDisplay
+ 925              		.syntax unified
+ 926              		.thumb
+ 927              		.thumb_func
+ 929              	i2cLcd_ClearDisplay:
+ 930              	.LVL84:
+ 931              	.LFB78:
+ 237:Core/Src/i2c_lcd.c **** 
+ 932              		.loc 1 237 61 is_stmt 1 view -0
+ 933              		.cfi_startproc
+ 934              		@ args = 0, pretend = 0, frame = 0
+ 935              		@ frame_needed = 0, uses_anonymous_args = 0
+ 237:Core/Src/i2c_lcd.c **** 
+ 936              		.loc 1 237 61 is_stmt 0 view .LVU251
+ 937 0000 08B5     		push	{r3, lr}
+ 938              	.LCFI26:
+ 939              		.cfi_def_cfa_offset 8
+ 940              		.cfi_offset 3, -8
+ 941              		.cfi_offset 14, -4
+ 240:Core/Src/i2c_lcd.c **** }
+ 942              		.loc 1 240 5 is_stmt 1 view .LVU252
+ARM GAS  /tmp/ccAjMzaQ.s 			page 26
+
+
+ 240:Core/Src/i2c_lcd.c **** }
+ 943              		.loc 1 240 12 is_stmt 0 view .LVU253
+ 944 0002 0121     		movs	r1, #1
+ 945 0004 FFF7FEFF 		bl	i2cLcd_SendCmd
+ 946              	.LVL85:
+ 241:Core/Src/i2c_lcd.c **** 
+ 947              		.loc 1 241 1 view .LVU254
+ 948 0008 08BD     		pop	{r3, pc}
+ 949              		.cfi_endproc
+ 950              	.LFE78:
+ 952              		.section	.text.i2cLcd_ReturnHome,"ax",%progbits
+ 953              		.align	1
+ 954              		.global	i2cLcd_ReturnHome
+ 955              		.syntax unified
+ 956              		.thumb
+ 957              		.thumb_func
+ 959              	i2cLcd_ReturnHome:
+ 960              	.LVL86:
+ 961              	.LFB79:
+ 244:Core/Src/i2c_lcd.c ****     return i2cLcd_SendCmd(h_i2cLcd, RET_HOME );
+ 962              		.loc 1 244 59 is_stmt 1 view -0
+ 963              		.cfi_startproc
+ 964              		@ args = 0, pretend = 0, frame = 0
+ 965              		@ frame_needed = 0, uses_anonymous_args = 0
+ 244:Core/Src/i2c_lcd.c ****     return i2cLcd_SendCmd(h_i2cLcd, RET_HOME );
+ 966              		.loc 1 244 59 is_stmt 0 view .LVU256
+ 967 0000 08B5     		push	{r3, lr}
+ 968              	.LCFI27:
+ 969              		.cfi_def_cfa_offset 8
+ 970              		.cfi_offset 3, -8
+ 971              		.cfi_offset 14, -4
+ 245:Core/Src/i2c_lcd.c **** }
+ 972              		.loc 1 245 5 is_stmt 1 view .LVU257
+ 245:Core/Src/i2c_lcd.c **** }
+ 973              		.loc 1 245 12 is_stmt 0 view .LVU258
+ 974 0002 0221     		movs	r1, #2
+ 975 0004 FFF7FEFF 		bl	i2cLcd_SendCmd
+ 976              	.LVL87:
+ 246:Core/Src/i2c_lcd.c **** 
+ 977              		.loc 1 246 1 view .LVU259
+ 978 0008 08BD     		pop	{r3, pc}
+ 979              		.cfi_endproc
+ 980              	.LFE79:
+ 982              		.section	.text.i2cLcd_SendCmd_4b,"ax",%progbits
+ 983              		.align	1
+ 984              		.global	i2cLcd_SendCmd_4b
+ 985              		.syntax unified
+ 986              		.thumb
+ 987              		.thumb_func
+ 989              	i2cLcd_SendCmd_4b:
+ 990              	.LVL88:
+ 991              	.LFB70:
+ 131:Core/Src/i2c_lcd.c **** 
+ 992              		.loc 1 131 73 is_stmt 1 view -0
+ 993              		.cfi_startproc
+ 994              		@ args = 0, pretend = 0, frame = 0
+ 995              		@ frame_needed = 0, uses_anonymous_args = 0
+ARM GAS  /tmp/ccAjMzaQ.s 			page 27
+
+
+ 131:Core/Src/i2c_lcd.c **** 
+ 996              		.loc 1 131 73 is_stmt 0 view .LVU261
+ 997 0000 08B5     		push	{r3, lr}
+ 998              	.LCFI28:
+ 999              		.cfi_def_cfa_offset 8
+ 1000              		.cfi_offset 3, -8
+ 1001              		.cfi_offset 14, -4
+ 133:Core/Src/i2c_lcd.c **** }
+ 1002              		.loc 1 133 5 is_stmt 1 view .LVU262
+ 133:Core/Src/i2c_lcd.c **** }
+ 1003              		.loc 1 133 12 is_stmt 0 view .LVU263
+ 1004 0002 0222     		movs	r2, #2
+ 1005 0004 FFF7FEFF 		bl	i2cLcd_SendByte
+ 1006              	.LVL89:
+ 134:Core/Src/i2c_lcd.c **** 
+ 1007              		.loc 1 134 1 view .LVU264
+ 1008 0008 08BD     		pop	{r3, pc}
+ 1009              		.cfi_endproc
+ 1010              	.LFE70:
+ 1012              		.section	.text.i2cLcd_SetCursorPosition,"ax",%progbits
+ 1013              		.align	1
+ 1014              		.global	i2cLcd_SetCursorPosition
+ 1015              		.syntax unified
+ 1016              		.thumb
+ 1017              		.thumb_func
+ 1019              	i2cLcd_SetCursorPosition:
+ 1020              	.LVL90:
+ 1021              	.LFB80:
+ 249:Core/Src/i2c_lcd.c ****     return i2cLcd_SendByte(h_i2cLcd, DDRAM_ADDR | pos, I2CLCD_OPTS_NOINIT);
+ 1022              		.loc 1 249 79 is_stmt 1 view -0
+ 1023              		.cfi_startproc
+ 1024              		@ args = 0, pretend = 0, frame = 0
+ 1025              		@ frame_needed = 0, uses_anonymous_args = 0
+ 249:Core/Src/i2c_lcd.c ****     return i2cLcd_SendByte(h_i2cLcd, DDRAM_ADDR | pos, I2CLCD_OPTS_NOINIT);
+ 1026              		.loc 1 249 79 is_stmt 0 view .LVU266
+ 1027 0000 08B5     		push	{r3, lr}
+ 1028              	.LCFI29:
+ 1029              		.cfi_def_cfa_offset 8
+ 1030              		.cfi_offset 3, -8
+ 1031              		.cfi_offset 14, -4
+ 250:Core/Src/i2c_lcd.c **** }
+ 1032              		.loc 1 250 5 is_stmt 1 view .LVU267
+ 250:Core/Src/i2c_lcd.c **** }
+ 1033              		.loc 1 250 12 is_stmt 0 view .LVU268
+ 1034 0002 0022     		movs	r2, #0
+ 1035 0004 41F08001 		orr	r1, r1, #128
+ 1036              	.LVL91:
+ 250:Core/Src/i2c_lcd.c **** }
+ 1037              		.loc 1 250 12 view .LVU269
+ 1038 0008 FFF7FEFF 		bl	i2cLcd_SendByte
+ 1039              	.LVL92:
+ 251:Core/Src/i2c_lcd.c **** 
+ 1040              		.loc 1 251 1 view .LVU270
+ 1041 000c 08BD     		pop	{r3, pc}
+ 1042              		.cfi_endproc
+ 1043              	.LFE80:
+ 1045              		.section	.text.i2cLcd_WriteCustomChar,"ax",%progbits
+ARM GAS  /tmp/ccAjMzaQ.s 			page 28
+
+
+ 1046              		.align	1
+ 1047              		.global	i2cLcd_WriteCustomChar
+ 1048              		.syntax unified
+ 1049              		.thumb
+ 1050              		.thumb_func
+ 1052              	i2cLcd_WriteCustomChar:
+ 1053              	.LVL93:
+ 1054              	.LFB71:
+ 140:Core/Src/i2c_lcd.c ****     uint8_t i;
+ 1055              		.loc 1 140 99 is_stmt 1 view -0
+ 1056              		.cfi_startproc
+ 1057              		@ args = 0, pretend = 0, frame = 8
+ 1058              		@ frame_needed = 0, uses_anonymous_args = 0
+ 140:Core/Src/i2c_lcd.c ****     uint8_t i;
+ 1059              		.loc 1 140 99 is_stmt 0 view .LVU272
+ 1060 0000 2DE9F041 		push	{r4, r5, r6, r7, r8, lr}
+ 1061              	.LCFI30:
+ 1062              		.cfi_def_cfa_offset 24
+ 1063              		.cfi_offset 4, -24
+ 1064              		.cfi_offset 5, -20
+ 1065              		.cfi_offset 6, -16
+ 1066              		.cfi_offset 7, -12
+ 1067              		.cfi_offset 8, -8
+ 1068              		.cfi_offset 14, -4
+ 1069 0004 82B0     		sub	sp, sp, #8
+ 1070              	.LCFI31:
+ 1071              		.cfi_def_cfa_offset 32
+ 1072 0006 0646     		mov	r6, r0
+ 1073 0008 9046     		mov	r8, r2
+ 141:Core/Src/i2c_lcd.c ****     uint8_t hal_stat;
+ 1074              		.loc 1 141 5 is_stmt 1 view .LVU273
+ 142:Core/Src/i2c_lcd.c ****     uint8_t _addr;
+ 1075              		.loc 1 142 5 view .LVU274
+ 143:Core/Src/i2c_lcd.c **** 
+ 1076              		.loc 1 143 5 view .LVU275
+ 145:Core/Src/i2c_lcd.c ****     hal_stat = 0;
+ 1077              		.loc 1 145 5 view .LVU276
+ 145:Core/Src/i2c_lcd.c ****     hal_stat = 0;
+ 1078              		.loc 1 145 12 is_stmt 0 view .LVU277
+ 1079 000a C900     		lsls	r1, r1, #3
+ 1080              	.LVL94:
+ 145:Core/Src/i2c_lcd.c ****     hal_stat = 0;
+ 1081              		.loc 1 145 12 view .LVU278
+ 1082 000c CFB2     		uxtb	r7, r1
+ 1083              	.LVL95:
+ 146:Core/Src/i2c_lcd.c **** 
+ 1084              		.loc 1 146 5 is_stmt 1 view .LVU279
+ 149:Core/Src/i2c_lcd.c **** 
+ 1085              		.loc 1 149 5 view .LVU280
+ 149:Core/Src/i2c_lcd.c **** 
+ 1086              		.loc 1 149 17 is_stmt 0 view .LVU281
+ 1087 000e 0DF10701 		add	r1, sp, #7
+ 1088 0012 FFF7FEFF 		bl	i2cLcd_GetCursorPosition
+ 1089              	.LVL96:
+ 149:Core/Src/i2c_lcd.c **** 
+ 1090              		.loc 1 149 17 view .LVU282
+ 1091 0016 0446     		mov	r4, r0
+ARM GAS  /tmp/ccAjMzaQ.s 			page 29
+
+
+ 1092              	.LVL97:
+ 151:Core/Src/i2c_lcd.c ****         h_i2cLcd->cgram_addr = CGRAM_ADDR | (cgaddr | i);
+ 1093              		.loc 1 151 5 is_stmt 1 view .LVU283
+ 151:Core/Src/i2c_lcd.c ****         h_i2cLcd->cgram_addr = CGRAM_ADDR | (cgaddr | i);
+ 1094              		.loc 1 151 10 is_stmt 0 view .LVU284
+ 1095 0018 0025     		movs	r5, #0
+ 151:Core/Src/i2c_lcd.c ****         h_i2cLcd->cgram_addr = CGRAM_ADDR | (cgaddr | i);
+ 1096              		.loc 1 151 5 view .LVU285
+ 1097 001a 12E0     		b	.L61
+ 1098              	.LVL98:
+ 1099              	.L62:
+ 152:Core/Src/i2c_lcd.c ****         hal_stat |= i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->cgram_addr );
+ 1100              		.loc 1 152 9 is_stmt 1 discriminator 3 view .LVU286
+ 152:Core/Src/i2c_lcd.c ****         hal_stat |= i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->cgram_addr );
+ 1101              		.loc 1 152 30 is_stmt 0 discriminator 3 view .LVU287
+ 1102 001c 45EA0701 		orr	r1, r5, r7
+ 1103 0020 41F04001 		orr	r1, r1, #64
+ 1104 0024 7172     		strb	r1, [r6, #9]
+ 153:Core/Src/i2c_lcd.c **** 
+ 1105              		.loc 1 153 9 is_stmt 1 discriminator 3 view .LVU288
+ 153:Core/Src/i2c_lcd.c **** 
+ 1106              		.loc 1 153 21 is_stmt 0 discriminator 3 view .LVU289
+ 1107 0026 3046     		mov	r0, r6
+ 1108 0028 FFF7FEFF 		bl	i2cLcd_SendCmd
+ 1109              	.LVL99:
+ 153:Core/Src/i2c_lcd.c **** 
+ 1110              		.loc 1 153 18 discriminator 3 view .LVU290
+ 1111 002c 0443     		orrs	r4, r4, r0
+ 1112              	.LVL100:
+ 153:Core/Src/i2c_lcd.c **** 
+ 1113              		.loc 1 153 18 discriminator 3 view .LVU291
+ 1114 002e E4B2     		uxtb	r4, r4
+ 1115              	.LVL101:
+ 155:Core/Src/i2c_lcd.c ****     }
+ 1116              		.loc 1 155 9 is_stmt 1 discriminator 3 view .LVU292
+ 155:Core/Src/i2c_lcd.c ****     }
+ 1117              		.loc 1 155 21 is_stmt 0 discriminator 3 view .LVU293
+ 1118 0030 18F80510 		ldrb	r1, [r8, r5]	@ zero_extendqisi2
+ 1119 0034 3046     		mov	r0, r6
+ 1120 0036 FFF7FEFF 		bl	i2cLcd_SendChar
+ 1121              	.LVL102:
+ 155:Core/Src/i2c_lcd.c ****     }
+ 1122              		.loc 1 155 18 discriminator 3 view .LVU294
+ 1123 003a 0443     		orrs	r4, r4, r0
+ 1124              	.LVL103:
+ 155:Core/Src/i2c_lcd.c ****     }
+ 1125              		.loc 1 155 18 discriminator 3 view .LVU295
+ 1126 003c E4B2     		uxtb	r4, r4
+ 1127              	.LVL104:
+ 151:Core/Src/i2c_lcd.c ****         h_i2cLcd->cgram_addr = CGRAM_ADDR | (cgaddr | i);
+ 1128              		.loc 1 151 20 is_stmt 1 discriminator 3 view .LVU296
+ 1129 003e 0135     		adds	r5, r5, #1
+ 1130              	.LVL105:
+ 151:Core/Src/i2c_lcd.c ****         h_i2cLcd->cgram_addr = CGRAM_ADDR | (cgaddr | i);
+ 1131              		.loc 1 151 20 is_stmt 0 discriminator 3 view .LVU297
+ 1132 0040 EDB2     		uxtb	r5, r5
+ 1133              	.LVL106:
+ARM GAS  /tmp/ccAjMzaQ.s 			page 30
+
+
+ 1134              	.L61:
+ 151:Core/Src/i2c_lcd.c ****         h_i2cLcd->cgram_addr = CGRAM_ADDR | (cgaddr | i);
+ 1135              		.loc 1 151 15 is_stmt 1 discriminator 1 view .LVU298
+ 1136 0042 072D     		cmp	r5, #7
+ 1137 0044 EAD9     		bls	.L62
+ 159:Core/Src/i2c_lcd.c **** 
+ 1138              		.loc 1 159 5 view .LVU299
+ 159:Core/Src/i2c_lcd.c **** 
+ 1139              		.loc 1 159 17 is_stmt 0 view .LVU300
+ 1140 0046 9DF80710 		ldrb	r1, [sp, #7]	@ zero_extendqisi2
+ 1141 004a 3046     		mov	r0, r6
+ 1142 004c FFF7FEFF 		bl	i2cLcd_SetCursorPosition
+ 1143              	.LVL107:
+ 159:Core/Src/i2c_lcd.c **** 
+ 1144              		.loc 1 159 14 view .LVU301
+ 1145 0050 2043     		orrs	r0, r0, r4
+ 1146              	.LVL108:
+ 161:Core/Src/i2c_lcd.c **** }
+ 1147              		.loc 1 161 5 is_stmt 1 view .LVU302
+ 162:Core/Src/i2c_lcd.c **** 
+ 1148              		.loc 1 162 1 is_stmt 0 view .LVU303
+ 1149 0052 C0B2     		uxtb	r0, r0
+ 162:Core/Src/i2c_lcd.c **** 
+ 1150              		.loc 1 162 1 view .LVU304
+ 1151 0054 02B0     		add	sp, sp, #8
+ 1152              	.LCFI32:
+ 1153              		.cfi_def_cfa_offset 24
+ 1154              		@ sp needed
+ 1155 0056 BDE8F081 		pop	{r4, r5, r6, r7, r8, pc}
+ 162:Core/Src/i2c_lcd.c **** 
+ 1156              		.loc 1 162 1 view .LVU305
+ 1157              		.cfi_endproc
+ 1158              	.LFE71:
+ 1160              		.section	.text.i2cLcd_Init,"ax",%progbits
+ 1161              		.align	1
+ 1162              		.global	i2cLcd_Init
+ 1163              		.syntax unified
+ 1164              		.thumb
+ 1165              		.thumb_func
+ 1167              	i2cLcd_Init:
+ 1168              	.LVL109:
+ 1169              	.LFB77:
+ 201:Core/Src/i2c_lcd.c ****     uint8_t ret;
+ 1170              		.loc 1 201 53 is_stmt 1 view -0
+ 1171              		.cfi_startproc
+ 1172              		@ args = 0, pretend = 0, frame = 0
+ 1173              		@ frame_needed = 0, uses_anonymous_args = 0
+ 201:Core/Src/i2c_lcd.c ****     uint8_t ret;
+ 1174              		.loc 1 201 53 is_stmt 0 view .LVU307
+ 1175 0000 70B5     		push	{r4, r5, r6, lr}
+ 1176              	.LCFI33:
+ 1177              		.cfi_def_cfa_offset 16
+ 1178              		.cfi_offset 4, -16
+ 1179              		.cfi_offset 5, -12
+ 1180              		.cfi_offset 6, -8
+ 1181              		.cfi_offset 14, -4
+ 1182 0002 0546     		mov	r5, r0
+ARM GAS  /tmp/ccAjMzaQ.s 			page 31
+
+
+ 202:Core/Src/i2c_lcd.c ****     ret = 0;
+ 1183              		.loc 1 202 5 is_stmt 1 view .LVU308
+ 203:Core/Src/i2c_lcd.c **** 
+ 1184              		.loc 1 203 5 view .LVU309
+ 1185              	.LVL110:
+ 205:Core/Src/i2c_lcd.c ****     h_i2cLcd->blacklight = I2CLCD_BL;
+ 1186              		.loc 1 205 5 view .LVU310
+ 205:Core/Src/i2c_lcd.c ****     h_i2cLcd->blacklight = I2CLCD_BL;
+ 1187              		.loc 1 205 28 is_stmt 0 view .LVU311
+ 1188 0004 3021     		movs	r1, #48
+ 1189 0006 0172     		strb	r1, [r0, #8]
+ 206:Core/Src/i2c_lcd.c ****     h_i2cLcd->entry_mode_set = MODE_SET ;
+ 1190              		.loc 1 206 5 is_stmt 1 view .LVU312
+ 206:Core/Src/i2c_lcd.c ****     h_i2cLcd->entry_mode_set = MODE_SET ;
+ 1191              		.loc 1 206 26 is_stmt 0 view .LVU313
+ 1192 0008 0823     		movs	r3, #8
+ 1193 000a C372     		strb	r3, [r0, #11]
+ 207:Core/Src/i2c_lcd.c ****     h_i2cLcd->cursor_display_shift = CD_SHIFT;
+ 1194              		.loc 1 207 5 is_stmt 1 view .LVU314
+ 207:Core/Src/i2c_lcd.c ****     h_i2cLcd->cursor_display_shift = CD_SHIFT;
+ 1195              		.loc 1 207 30 is_stmt 0 view .LVU315
+ 1196 000c 0426     		movs	r6, #4
+ 1197 000e 4671     		strb	r6, [r0, #5]
+ 208:Core/Src/i2c_lcd.c **** 
+ 1198              		.loc 1 208 5 is_stmt 1 view .LVU316
+ 208:Core/Src/i2c_lcd.c **** 
+ 1199              		.loc 1 208 36 is_stmt 0 view .LVU317
+ 1200 0010 1023     		movs	r3, #16
+ 1201 0012 C371     		strb	r3, [r0, #7]
+ 213:Core/Src/i2c_lcd.c ****     i2cLcd_Delay_ms(4);
+ 1202              		.loc 1 213 5 is_stmt 1 view .LVU318
+ 213:Core/Src/i2c_lcd.c ****     i2cLcd_Delay_ms(4);
+ 1203              		.loc 1 213 12 is_stmt 0 view .LVU319
+ 1204 0014 FFF7FEFF 		bl	i2cLcd_SendCmd_4b
+ 1205              	.LVL111:
+ 213:Core/Src/i2c_lcd.c ****     i2cLcd_Delay_ms(4);
+ 1206              		.loc 1 213 12 view .LVU320
+ 1207 0018 0446     		mov	r4, r0
+ 1208              	.LVL112:
+ 214:Core/Src/i2c_lcd.c ****     ret |= i2cLcd_SendCmd_4b(h_i2cLcd, h_i2cLcd->function_set);
+ 1209              		.loc 1 214 5 is_stmt 1 view .LVU321
+ 1210 001a 3046     		mov	r0, r6
+ 1211 001c FFF7FEFF 		bl	i2cLcd_Delay_ms
+ 1212              	.LVL113:
+ 215:Core/Src/i2c_lcd.c ****     ret |= i2cLcd_SendCmd_4b(h_i2cLcd, h_i2cLcd->function_set);
+ 1213              		.loc 1 215 5 view .LVU322
+ 215:Core/Src/i2c_lcd.c ****     ret |= i2cLcd_SendCmd_4b(h_i2cLcd, h_i2cLcd->function_set);
+ 1214              		.loc 1 215 12 is_stmt 0 view .LVU323
+ 1215 0020 297A     		ldrb	r1, [r5, #8]	@ zero_extendqisi2
+ 1216 0022 2846     		mov	r0, r5
+ 1217 0024 FFF7FEFF 		bl	i2cLcd_SendCmd_4b
+ 1218              	.LVL114:
+ 215:Core/Src/i2c_lcd.c ****     ret |= i2cLcd_SendCmd_4b(h_i2cLcd, h_i2cLcd->function_set);
+ 1219              		.loc 1 215 9 view .LVU324
+ 1220 0028 0443     		orrs	r4, r4, r0
+ 1221              	.LVL115:
+ 215:Core/Src/i2c_lcd.c ****     ret |= i2cLcd_SendCmd_4b(h_i2cLcd, h_i2cLcd->function_set);
+ARM GAS  /tmp/ccAjMzaQ.s 			page 32
+
+
+ 1222              		.loc 1 215 9 view .LVU325
+ 1223 002a E4B2     		uxtb	r4, r4
+ 1224              	.LVL116:
+ 216:Core/Src/i2c_lcd.c **** 
+ 1225              		.loc 1 216 5 is_stmt 1 view .LVU326
+ 216:Core/Src/i2c_lcd.c **** 
+ 1226              		.loc 1 216 12 is_stmt 0 view .LVU327
+ 1227 002c 297A     		ldrb	r1, [r5, #8]	@ zero_extendqisi2
+ 1228 002e 2846     		mov	r0, r5
+ 1229 0030 FFF7FEFF 		bl	i2cLcd_SendCmd_4b
+ 1230              	.LVL117:
+ 216:Core/Src/i2c_lcd.c **** 
+ 1231              		.loc 1 216 9 view .LVU328
+ 1232 0034 0443     		orrs	r4, r4, r0
+ 1233              	.LVL118:
+ 216:Core/Src/i2c_lcd.c **** 
+ 1234              		.loc 1 216 9 view .LVU329
+ 1235 0036 E4B2     		uxtb	r4, r4
+ 1236              	.LVL119:
+ 218:Core/Src/i2c_lcd.c ****     ret |= i2cLcd_SendCmd_4b(h_i2cLcd, h_i2cLcd->function_set);
+ 1237              		.loc 1 218 5 is_stmt 1 view .LVU330
+ 218:Core/Src/i2c_lcd.c ****     ret |= i2cLcd_SendCmd_4b(h_i2cLcd, h_i2cLcd->function_set);
+ 1238              		.loc 1 218 28 is_stmt 0 view .LVU331
+ 1239 0038 2021     		movs	r1, #32
+ 1240 003a 2972     		strb	r1, [r5, #8]
+ 219:Core/Src/i2c_lcd.c **** 
+ 1241              		.loc 1 219 5 is_stmt 1 view .LVU332
+ 219:Core/Src/i2c_lcd.c **** 
+ 1242              		.loc 1 219 12 is_stmt 0 view .LVU333
+ 1243 003c 2846     		mov	r0, r5
+ 1244 003e FFF7FEFF 		bl	i2cLcd_SendCmd_4b
+ 1245              	.LVL120:
+ 219:Core/Src/i2c_lcd.c **** 
+ 1246              		.loc 1 219 9 view .LVU334
+ 1247 0042 0443     		orrs	r4, r4, r0
+ 1248              	.LVL121:
+ 219:Core/Src/i2c_lcd.c **** 
+ 1249              		.loc 1 219 9 view .LVU335
+ 1250 0044 E4B2     		uxtb	r4, r4
+ 1251              	.LVL122:
+ 221:Core/Src/i2c_lcd.c ****     ret |= i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->function_set);
+ 1252              		.loc 1 221 5 is_stmt 1 view .LVU336
+ 221:Core/Src/i2c_lcd.c ****     ret |= i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->function_set);
+ 1253              		.loc 1 221 28 is_stmt 0 view .LVU337
+ 1254 0046 2821     		movs	r1, #40
+ 1255 0048 2972     		strb	r1, [r5, #8]
+ 222:Core/Src/i2c_lcd.c **** 
+ 1256              		.loc 1 222 5 is_stmt 1 view .LVU338
+ 222:Core/Src/i2c_lcd.c **** 
+ 1257              		.loc 1 222 12 is_stmt 0 view .LVU339
+ 1258 004a 2846     		mov	r0, r5
+ 1259 004c FFF7FEFF 		bl	i2cLcd_SendCmd
+ 1260              	.LVL123:
+ 222:Core/Src/i2c_lcd.c **** 
+ 1261              		.loc 1 222 9 view .LVU340
+ 1262 0050 0443     		orrs	r4, r4, r0
+ 1263              	.LVL124:
+ARM GAS  /tmp/ccAjMzaQ.s 			page 33
+
+
+ 222:Core/Src/i2c_lcd.c **** 
+ 1264              		.loc 1 222 9 view .LVU341
+ 1265 0052 E4B2     		uxtb	r4, r4
+ 1266              	.LVL125:
+ 224:Core/Src/i2c_lcd.c ****     ret |= i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->diplay_ctrl);
+ 1267              		.loc 1 224 5 is_stmt 1 view .LVU342
+ 224:Core/Src/i2c_lcd.c ****     ret |= i2cLcd_SendCmd(h_i2cLcd, h_i2cLcd->diplay_ctrl);
+ 1268              		.loc 1 224 27 is_stmt 0 view .LVU343
+ 1269 0054 0F21     		movs	r1, #15
+ 1270 0056 A971     		strb	r1, [r5, #6]
+ 225:Core/Src/i2c_lcd.c **** 
+ 1271              		.loc 1 225 5 is_stmt 1 view .LVU344
+ 225:Core/Src/i2c_lcd.c **** 
+ 1272              		.loc 1 225 12 is_stmt 0 view .LVU345
+ 1273 0058 2846     		mov	r0, r5
+ 1274 005a FFF7FEFF 		bl	i2cLcd_SendCmd
+ 1275              	.LVL126:
+ 225:Core/Src/i2c_lcd.c **** 
+ 1276              		.loc 1 225 9 view .LVU346
+ 1277 005e 0443     		orrs	r4, r4, r0
+ 1278              	.LVL127:
+ 225:Core/Src/i2c_lcd.c **** 
+ 1279              		.loc 1 225 9 view .LVU347
+ 1280 0060 E4B2     		uxtb	r4, r4
+ 1281              	.LVL128:
+ 227:Core/Src/i2c_lcd.c **** 
+ 1282              		.loc 1 227 5 is_stmt 1 view .LVU348
+ 227:Core/Src/i2c_lcd.c **** 
+ 1283              		.loc 1 227 12 is_stmt 0 view .LVU349
+ 1284 0062 6979     		ldrb	r1, [r5, #5]	@ zero_extendqisi2
+ 1285 0064 2846     		mov	r0, r5
+ 1286 0066 FFF7FEFF 		bl	i2cLcd_SendCmd
+ 1287              	.LVL129:
+ 227:Core/Src/i2c_lcd.c **** 
+ 1288              		.loc 1 227 9 view .LVU350
+ 1289 006a 0443     		orrs	r4, r4, r0
+ 1290              	.LVL130:
+ 227:Core/Src/i2c_lcd.c **** 
+ 1291              		.loc 1 227 9 view .LVU351
+ 1292 006c E4B2     		uxtb	r4, r4
+ 1293              	.LVL131:
+ 229:Core/Src/i2c_lcd.c **** 
+ 1294              		.loc 1 229 5 is_stmt 1 view .LVU352
+ 1295 006e 2846     		mov	r0, r5
+ 1296 0070 FFF7FEFF 		bl	i2cLcd_ClearDisplay
+ 1297              	.LVL132:
+ 231:Core/Src/i2c_lcd.c ****     return ret;
+ 1298              		.loc 1 231 5 view .LVU353
+ 1299 0074 0520     		movs	r0, #5
+ 1300 0076 FFF7FEFF 		bl	i2cLcd_Delay_ms
+ 1301              	.LVL133:
+ 232:Core/Src/i2c_lcd.c **** }
+ 1302              		.loc 1 232 5 view .LVU354
+ 233:Core/Src/i2c_lcd.c **** 
+ 1303              		.loc 1 233 1 is_stmt 0 view .LVU355
+ 1304 007a 2046     		mov	r0, r4
+ 1305 007c 70BD     		pop	{r4, r5, r6, pc}
+ARM GAS  /tmp/ccAjMzaQ.s 			page 34
+
+
+ 233:Core/Src/i2c_lcd.c **** 
+ 1306              		.loc 1 233 1 view .LVU356
+ 1307              		.cfi_endproc
+ 1308              	.LFE77:
+ 1310              		.section	.text.i2cLcd_Delay_us,"ax",%progbits
+ 1311              		.align	1
+ 1312              		.global	i2cLcd_Delay_us
+ 1313              		.syntax unified
+ 1314              		.thumb
+ 1315              		.thumb_func
+ 1317              	i2cLcd_Delay_us:
+ 1318              	.LVL134:
+ 1319              	.LFB86:
+ 291:Core/Src/i2c_lcd.c **** 
+ 292:Core/Src/i2c_lcd.c **** 
+ 293:Core/Src/i2c_lcd.c **** uint8_t i2cLcd_Delay_us(uint32_t delay_us){
+ 1320              		.loc 1 293 43 is_stmt 1 view -0
+ 1321              		.cfi_startproc
+ 1322              		@ args = 0, pretend = 0, frame = 0
+ 1323              		@ frame_needed = 0, uses_anonymous_args = 0
+ 1324              		.loc 1 293 43 is_stmt 0 view .LVU358
+ 1325 0000 08B5     		push	{r3, lr}
+ 1326              	.LCFI34:
+ 1327              		.cfi_def_cfa_offset 8
+ 1328              		.cfi_offset 3, -8
+ 1329              		.cfi_offset 14, -4
+ 294:Core/Src/i2c_lcd.c ****     // Change the delay function call if HAL_ is not available
+ 295:Core/Src/i2c_lcd.c ****     // currently it delays a millisecond at minimum
+ 296:Core/Src/i2c_lcd.c ****     uint32_t delay_ms;
+ 1330              		.loc 1 296 5 is_stmt 1 view .LVU359
+ 297:Core/Src/i2c_lcd.c ****     delay_ms = (delay_us >> 10); // divide by 1024
+ 1331              		.loc 1 297 5 view .LVU360
+ 1332              	.LVL135:
+ 298:Core/Src/i2c_lcd.c ****     if (delay_ms == 0) delay_ms = 1;
+ 1333              		.loc 1 298 5 view .LVU361
+ 299:Core/Src/i2c_lcd.c **** 
+ 300:Core/Src/i2c_lcd.c ****     HAL_Delay(delay_us);
+ 1334              		.loc 1 300 5 view .LVU362
+ 1335 0002 FFF7FEFF 		bl	HAL_Delay
+ 1336              	.LVL136:
+ 301:Core/Src/i2c_lcd.c ****     return 0;
+ 1337              		.loc 1 301 5 view .LVU363
+ 302:Core/Src/i2c_lcd.c **** }
+ 1338              		.loc 1 302 1 is_stmt 0 view .LVU364
+ 1339 0006 0020     		movs	r0, #0
+ 1340 0008 08BD     		pop	{r3, pc}
+ 1341              		.cfi_endproc
+ 1342              	.LFE86:
+ 1344              		.text
+ 1345              	.Letext0:
+ 1346              		.file 2 "/usr/arm-none-eabi/include/machine/_default_types.h"
+ 1347              		.file 3 "/usr/arm-none-eabi/include/sys/_stdint.h"
+ 1348              		.file 4 "Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f103xb.h"
+ 1349              		.file 5 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h"
+ 1350              		.file 6 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_dma.h"
+ 1351              		.file 7 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_i2c.h"
+ 1352              		.file 8 "Core/Inc/i2c_lcd.h"
+ARM GAS  /tmp/ccAjMzaQ.s 			page 35
+
+
+ 1353              		.file 9 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h"
+ARM GAS  /tmp/ccAjMzaQ.s 			page 36
+
+
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 i2c_lcd.c
+     /tmp/ccAjMzaQ.s:19     .text.i2cLcd_Backlight:0000000000000000 $t
+     /tmp/ccAjMzaQ.s:25     .text.i2cLcd_Backlight:0000000000000000 i2cLcd_Backlight
+     /tmp/ccAjMzaQ.s:58     .text.i2cLcd_I2cWrite:0000000000000000 $t
+     /tmp/ccAjMzaQ.s:64     .text.i2cLcd_I2cWrite:0000000000000000 i2cLcd_I2cWrite
+     /tmp/ccAjMzaQ.s:105    .text.i2cLcd_CreateHandle:0000000000000000 $t
+     /tmp/ccAjMzaQ.s:111    .text.i2cLcd_CreateHandle:0000000000000000 i2cLcd_CreateHandle
+     /tmp/ccAjMzaQ.s:171    .text.i2cLcd_I2cRead:0000000000000000 $t
+     /tmp/ccAjMzaQ.s:177    .text.i2cLcd_I2cRead:0000000000000000 i2cLcd_I2cRead
+     /tmp/ccAjMzaQ.s:218    .text.i2cLcd_ReadByte:0000000000000000 $t
+     /tmp/ccAjMzaQ.s:224    .text.i2cLcd_ReadByte:0000000000000000 i2cLcd_ReadByte
+     /tmp/ccAjMzaQ.s:340    .text.i2cLcd_GetCursorPosition:0000000000000000 $t
+     /tmp/ccAjMzaQ.s:346    .text.i2cLcd_GetCursorPosition:0000000000000000 i2cLcd_GetCursorPosition
+     /tmp/ccAjMzaQ.s:380    .text.i2cLcd_Delay_ms:0000000000000000 $t
+     /tmp/ccAjMzaQ.s:386    .text.i2cLcd_Delay_ms:0000000000000000 i2cLcd_Delay_ms
+     /tmp/ccAjMzaQ.s:410    .text.i2cLcd_SendByte:0000000000000000 $t
+     /tmp/ccAjMzaQ.s:416    .text.i2cLcd_SendByte:0000000000000000 i2cLcd_SendByte
+     /tmp/ccAjMzaQ.s:590    .text.i2cLcd_SendChar:0000000000000000 $t
+     /tmp/ccAjMzaQ.s:596    .text.i2cLcd_SendChar:0000000000000000 i2cLcd_SendChar
+     /tmp/ccAjMzaQ.s:620    .text.i2cLcd_SendCmd:0000000000000000 $t
+     /tmp/ccAjMzaQ.s:626    .text.i2cLcd_SendCmd:0000000000000000 i2cLcd_SendCmd
+     /tmp/ccAjMzaQ.s:650    .text.i2cLcd_EntryIncrEn:0000000000000000 $t
+     /tmp/ccAjMzaQ.s:656    .text.i2cLcd_EntryIncrEn:0000000000000000 i2cLcd_EntryIncrEn
+     /tmp/ccAjMzaQ.s:701    .text.i2cLcd_EntryShiftEn:0000000000000000 $t
+     /tmp/ccAjMzaQ.s:707    .text.i2cLcd_EntryShiftEn:0000000000000000 i2cLcd_EntryShiftEn
+     /tmp/ccAjMzaQ.s:752    .text.i2cLcd_Shift:0000000000000000 $t
+     /tmp/ccAjMzaQ.s:758    .text.i2cLcd_Shift:0000000000000000 i2cLcd_Shift
+     /tmp/ccAjMzaQ.s:821    .text.i2cLcd_Blink:0000000000000000 $t
+     /tmp/ccAjMzaQ.s:827    .text.i2cLcd_Blink:0000000000000000 i2cLcd_Blink
+     /tmp/ccAjMzaQ.s:872    .text.i2cLcd_Cursor:0000000000000000 $t
+     /tmp/ccAjMzaQ.s:878    .text.i2cLcd_Cursor:0000000000000000 i2cLcd_Cursor
+     /tmp/ccAjMzaQ.s:923    .text.i2cLcd_ClearDisplay:0000000000000000 $t
+     /tmp/ccAjMzaQ.s:929    .text.i2cLcd_ClearDisplay:0000000000000000 i2cLcd_ClearDisplay
+     /tmp/ccAjMzaQ.s:953    .text.i2cLcd_ReturnHome:0000000000000000 $t
+     /tmp/ccAjMzaQ.s:959    .text.i2cLcd_ReturnHome:0000000000000000 i2cLcd_ReturnHome
+     /tmp/ccAjMzaQ.s:983    .text.i2cLcd_SendCmd_4b:0000000000000000 $t
+     /tmp/ccAjMzaQ.s:989    .text.i2cLcd_SendCmd_4b:0000000000000000 i2cLcd_SendCmd_4b
+     /tmp/ccAjMzaQ.s:1013   .text.i2cLcd_SetCursorPosition:0000000000000000 $t
+     /tmp/ccAjMzaQ.s:1019   .text.i2cLcd_SetCursorPosition:0000000000000000 i2cLcd_SetCursorPosition
+     /tmp/ccAjMzaQ.s:1046   .text.i2cLcd_WriteCustomChar:0000000000000000 $t
+     /tmp/ccAjMzaQ.s:1052   .text.i2cLcd_WriteCustomChar:0000000000000000 i2cLcd_WriteCustomChar
+     /tmp/ccAjMzaQ.s:1161   .text.i2cLcd_Init:0000000000000000 $t
+     /tmp/ccAjMzaQ.s:1167   .text.i2cLcd_Init:0000000000000000 i2cLcd_Init
+     /tmp/ccAjMzaQ.s:1311   .text.i2cLcd_Delay_us:0000000000000000 $t
+     /tmp/ccAjMzaQ.s:1317   .text.i2cLcd_Delay_us:0000000000000000 i2cLcd_Delay_us
+
+UNDEFINED SYMBOLS
+HAL_I2C_Master_Transmit
+HAL_I2C_Master_Receive
+HAL_Delay

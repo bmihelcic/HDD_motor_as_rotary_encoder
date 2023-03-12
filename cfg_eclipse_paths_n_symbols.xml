@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cdtprojectproperties>
+<section name="org.eclipse.cdt.internal.ui.wizards.settingswizards.IncludePaths">
+<language name="Assembly Source File">
+
+</language>
+<language name="C Source File">
+<includepath workspace_path="true">/HDD_motor_as_rotary_encoder/Core/Inc</includepath>
+<includepath workspace_path="true">/HDD_motor_as_rotary_encoder/Middlewares/Third_Party/FreeRTOS/Source/include</includepath>
+<includepath workspace_path="true">/HDD_motor_as_rotary_encoder/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS</includepath>
+<includepath workspace_path="true">/HDD_motor_as_rotary_encoder/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM3</includepath>
+<includepath workspace_path="true">/HDD_motor_as_rotary_encoder/Drivers/CMSIS/Include</includepath>
+<includepath workspace_path="true">/HDD_motor_as_rotary_encoder/Drivers/CMSIS/Device/ST/STM32F1xx/Include</includepath>
+<includepath workspace_path="true">/HDD_motor_as_rotary_encoder/Drivers/STM32F1xx_HAL_Driver/Inc</includepath>
+<includepath workspace_path="true">/HDD_motor_as_rotary_encoder/Drivers/STM32F1xx_HAL_Driver/Inc/Legacy</includepath>
+
+</language>
+<language name="C++ Source File">
+
+</language>
+<language name="Object File">
+
+</language>
+</section>
+<section name="org.eclipse.cdt.internal.ui.wizards.settingswizards.Macros">
+<language name="Assembly Source File">
+
+</language>
+<language name="C Source File">
+<macro>
+<name>USE_HAL_DRIVER</name><value/>
+</macro>
+<macro>
+<name>STM32F103xB</name><value/>
+</macro>
+
+</language>
+<language name="C++ Source File">
+
+</language>
+<language name="Object File">
+
+</language>
+</section>
+</cdtprojectproperties>
